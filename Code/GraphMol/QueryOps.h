@@ -1158,6 +1158,9 @@ inline bool hasComplexBondTypeQuery(const Bond &bond) {
   return hasComplexBondTypeQuery(*bond.getQuery());
 }
 
+RDKIT_GRAPHMOL_EXPORT bool validateAndQuery(const Queries::Query<int, Atom const *, true> &qry);
+RDKIT_GRAPHMOL_EXPORT bool validateAllQueries(const RDKit::ROMol& query);
+
 RDKIT_GRAPHMOL_EXPORT bool isMetal(const Atom &atom);
 }  // namespace QueryOps
 }  // namespace RDKit

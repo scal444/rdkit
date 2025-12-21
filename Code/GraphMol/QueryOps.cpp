@@ -1183,5 +1183,119 @@ bool isMetal(const Atom &atom) {
   return q->Match(&atom);
 }
 
+namespace {
+
+void printQueryTree(const Queries::Query<int, Atom const *, true>* query,
+                    const int offset = 0) {
+  const auto* equery = dynamic_cast<const ATOM_EQUALS_QUERY*>(query);
+  std::string offsetStr =  "*";
+  for (int i = 0; i < offset; ++i) {
+    offsetStr += "*";
+  }
+  if (equery == nullptr) {
+    printf("%s descr %s negation %d value\n",  offsetStr.c_str(), query->getDescription().c_str(), query->getNegation());
+
+  } else {
+    printf("%s descr %s negation %d value %d\n",  offsetStr.c_str(),  equery->getDescription().c_str(), equery->getNegation(), static_cast<int>(equery->getVal()));
+  }
+
+  for (auto child = query->beginChildren(); child != query->endChildren(); ++child ) {
+    printQueryTree(child->get(), offset + 2);
+  }
+}
+
+
+bool isIsolatedAndSubTree(const Queries::Query<int, Atom const *, true>* query) {
+  const std::string descr = query->getDescription();
+
+  const bool isAndNode = descr == "AtomAnd";
+  if (isAndNode) {
+    for (auto childIter = query->beginChildren(); childIter != query->endChildren(); ++childIter ) {
+      const auto* childQuery = childIter->get();
+      if (!isIsolatedAndSubTree(childQuery)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  const auto equery = dynamic_cast<const ATOM_EQUALS_QUERY*>(query);
+  if (equery == nullptr) {
+    return false;
+  }
+  return true;
+
+}
+using valueNegatedPair = std::pair<int, bool>;
+
+} // namespace
+
+
+bool validateAndQuery(const Queries::Query<int, Atom const *, true> &qry, std::unordered_map<std::string, valueNegatedPair>& descrValues) {
+  if (!isIsolatedAndSubTree(&qry)) {
+    return true;
+  }
+
+  for (auto child = qry.beginChildren(); child != qry.endChildren(); ++child ) {
+    const auto& childQuery  = *child;
+
+    // If we're not dealing with an equality query, recurse. We guarantee we only
+    // have equality and non-roots via the above isolation check.
+    const auto equery = dynamic_cast<ATOM_EQUALS_QUERY*>(childQuery.get());
+    if (equery == nullptr) {
+      if (!validateAndQuery(*childQuery, descrValues)) {
+        return false;
+      }
+      continue;
+    }
+    const std::string childDescr = childQuery->getDescription();
+
+    const int val = equery->getVal();
+    const int negation = equery->getNegation();
+
+    const auto& [res, inserted] = descrValues.insert({childDescr, std::make_pair(val, negation)});
+    if (!inserted) {
+      const auto [prevVal, prevNegation] = res->second;
+      const bool unequalNegation = negation != prevNegation;
+      const bool noNegation = !negation && !prevNegation;
+      // 3 negation cases to consider.
+      // 1. Straight up comparison, [val=1 && val=3] is invalid, but so is [val == 1 && val ==1]
+      if (val != prevVal && noNegation) {
+        return false;
+      }
+      // 2. One negated and one not [val = 1 && val != 3] is fine, but [ val == 1 and val != 1 ] is not
+      else if (val == prevVal && unequalNegation) {
+        return false;
+      }
+      // 3. Double negation, where we really can't say anything. [ val !=1 && val !=3] is fine, [val !=1 && val != 1 ] also true
+      else {
+
+      }
+
+    }
+  }
+  return true;
+}
+bool validateAndQuery(const Queries::Query<int, Atom const *, true> &qry) {
+  std::unordered_map<std::string, valueNegatedPair> descrValues;
+  return validateAndQuery(qry, descrValues);
+}
+bool validateAllQueries(const RDKit::ROMol& queryMol) {
+  for (const auto* atom: queryMol.atoms()) {
+    if (!atom->hasQuery()) {
+      continue;
+    }
+    const auto query = atom->getQuery();
+    //printf("Atom ------\n");
+    //printQueryTree(query, 0);
+    if (atom->hasQuery() && atom->getQuery()->getDescription() == "AtomAnd") {
+      std::unordered_map<std::string, valueNegatedPair> descrValues;
+      if (!validateAndQuery(*query, descrValues)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
 }  // namespace QueryOps
 };  // namespace RDKit
