@@ -136,6 +136,11 @@ void validate(const std::string& inputFileName) {
 
 TEST_CASE("Validator") {
   const std::vector<std::string> patterns = {
+    "/home/kevin/data/smarts/crippen.txt",
+    "/home/kevin/data/smarts/functional_group_hierarchy.txt",
+    "/home/kevin/data/smarts/functionalGroups.txt",
+    "/home/kevin/data/smarts/patty_rules.txt",
+
     "/home/kevin/repos/nvmolkit/tests/test_data/SMARTS/BMS_2006_filter.txt",
   "/home/kevin/repos/nvmolkit/tests/test_data/SMARTS/openbabel_functional_groups.txt",
   "/home/kevin/repos/nvmolkit/tests/test_data/SMARTS/pwalters_alert_collection.txt",
