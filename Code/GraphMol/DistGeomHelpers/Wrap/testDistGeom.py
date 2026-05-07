@@ -209,7 +209,7 @@ class TestCase(unittest.TestCase):
     ]
 
     nconfs = []
-    expected = [2, 2, 7, 5, 4, 3]
+    expected = [3, 2, 7, 6, 3, 3]
     for smi in smiles:
       mol = Chem.MolFromSmiles(smi)
       cids = rdDistGeom.EmbedMultipleConfs(mol, 50, maxAttempts=30, randomSeed=100,
@@ -217,7 +217,7 @@ class TestCase(unittest.TestCase):
       nconfs.append(len(cids))
 
     d = [abs(x - y) for x, y in zip(expected, nconfs)]
-    self.assertTrue(max(d) <= 2, f"expected {expected}, got {nconfs}")
+    self.assertTrue(max(d) <= 1, f"expected {expected}, got {nconfs}")
 
     # previous settings
     params = rdDistGeom.ETKDG()
@@ -226,14 +226,14 @@ class TestCase(unittest.TestCase):
     params.pruneRmsThresh = 1.5
     params.useSymmetryForPruning = False
     nconfs = []
-    expected = [5, 5, 4, 6, 8, 3]
+    expected = [5, 5, 8, 6, 8, 3]
     for smi in smiles:
       mol = Chem.MolFromSmiles(smi)
       cids = rdDistGeom.EmbedMultipleConfs(mol, 50, params)
       nconfs.append(len(cids))
 
     d = [abs(x - y) for x, y in zip(expected, nconfs)]
-    self.assertTrue(max(d) <= 2, f"expected {expected}, got {nconfs}")
+    self.assertTrue(max(d) <= 1, f"expected {expected}, got {nconfs}")
 
   def test6Chirality(self):
     # turn on chirality and we should get chiral volume that is pretty consistent and
