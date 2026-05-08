@@ -21,6 +21,21 @@ TEST_CASE("SmilesToMol", "[smiles]") {
   };
 }
 
+TEST_CASE("SmilesToMol no-sanitize", "[smiles]") {
+  v2::SmilesParse::SmilesParserParams params;
+  params.sanitize = false;
+  params.removeHs = false;
+  BENCHMARK("SmilesToMol no-sanitize") {
+    auto total_atoms = 0;
+    for (auto smiles : bench_common::SAMPLES) {
+      auto mol = v2::SmilesParse::MolFromSmiles(smiles, params);
+      REQUIRE(mol);
+      total_atoms += mol->getNumAtoms();
+    }
+    return total_atoms;
+  };
+}
+
 TEST_CASE("MolToSmiles", "[smiles]") {
   auto samples = bench_common::load_samples();
   BENCHMARK("MolToSmiles") {

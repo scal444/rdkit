@@ -42,6 +42,29 @@ TEST_CASE("CIPLabeler::assignCIPLabels", "[stereo]") {
   };
 }
 
+TEST_CASE("MolOps::clearSingleBondDirFlags", "[stereo]") {
+  auto samples = bench_common::load_samples();
+  BENCHMARK_ADVANCED("MolOps::clearSingleBondDirFlags")(
+      Catch::Benchmark::Chronometer meter) {
+    std::vector<ROMol> work;
+    work.reserve(meter.runs() * samples.size());
+    for (int run = 0; run < meter.runs(); ++run) {
+      for (const auto &mol : samples) {
+        work.emplace_back(mol);
+      }
+    }
+    meter.measure([&](int i) {
+      uint64_t total = 0;
+      for (size_t s = 0; s < samples.size(); ++s) {
+        auto &mol = work[i * samples.size() + s];
+        MolOps::clearSingleBondDirFlags(mol);
+        total += mol.getNumBonds();
+      }
+      return total;
+    });
+  };
+}
+
 TEST_CASE("MolOps::assignStereochemistry", "[stereo]") {
   const auto cleanIt = true;
   const auto force = true;
