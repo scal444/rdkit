@@ -8,9 +8,12 @@
 #include <GraphMol/ROMol.h>
 #include <GraphMol/SmilesParse/SmilesParse.h>
 #include <GraphMol/MolOps.h>
+#include <GraphMol/new_canon.h>
 #include <GraphMol/test_fixtures.h>
 
 using namespace RDKit;
+
+using bench_common::Dataset;
 
 TEST_CASE("Chirality::findPotentialStereo", "[stereo]") {
   auto samples = bench_common::load_samples();
@@ -93,3 +96,45 @@ TEST_CASE("MolOps::assignStereochemistry", "[stereo]") {
     return total;
   };
 }
+
+TEST_CASE("Canon::rankMolAtoms", "[stereo]") {
+  auto samples = bench_common::load_samples();
+  BENCHMARK("Canon::rankMolAtoms") {
+    uint64_t total = 0;
+    std::vector<unsigned int> ranks;
+    for (auto &mol : samples) {
+      Canon::rankMolAtoms(mol, ranks);
+      for (auto rank : ranks) {
+        total += rank;
+      }
+    }
+    return total;
+  };
+}
+
+#define BENCH_RANK_MOL_ATOMS(DATASET, SUFFIX, TAG)                             \
+  TEST_CASE("Canon::rankMolAtoms " SUFFIX, "[stereo]" TAG) {                    \
+    auto samples = bench_common::load_samples(DATASET);                         \
+    BENCHMARK("Canon::rankMolAtoms " SUFFIX) {                                  \
+      uint64_t total = 0;                                                       \
+      std::vector<unsigned int> ranks;                                          \
+      for (auto &mol : samples) {                                               \
+        Canon::rankMolAtoms(mol, ranks);                                        \
+        for (auto rank : ranks) {                                               \
+          total += rank;                                                        \
+        }                                                                       \
+      }                                                                         \
+      return total;                                                             \
+    };                                                                          \
+  }
+
+BENCH_RANK_MOL_ATOMS(Dataset::Size_00_20, "size 00-20", "[size_00_20]")
+BENCH_RANK_MOL_ATOMS(Dataset::Size_20_40, "size 20-40", "[size_20_40]")
+BENCH_RANK_MOL_ATOMS(Dataset::Size_40_60, "size 40-60", "[size_40_60]")
+BENCH_RANK_MOL_ATOMS(Dataset::Size_60_80, "size 60-80", "[size_60_80]")
+
+BENCH_RANK_MOL_ATOMS(Dataset::Rings_2, "rings 2", "[rings_2]")
+BENCH_RANK_MOL_ATOMS(Dataset::Rings_3, "rings 3", "[rings_3]")
+BENCH_RANK_MOL_ATOMS(Dataset::Rings_4, "rings 4", "[rings_4]")
+BENCH_RANK_MOL_ATOMS(Dataset::Rings_5, "rings 5", "[rings_5]")
+BENCH_RANK_MOL_ATOMS(Dataset::Rings_6, "rings 6", "[rings_6]")
