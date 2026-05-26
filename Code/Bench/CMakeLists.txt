@@ -1,4 +1,5 @@
 add_executable(bench EXCLUDE_FROM_ALL bench_common.cpp
+  api_microbenchmarks.cpp
   descriptors.cpp
   fingerprint.cpp
   meta.cpp
