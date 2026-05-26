@@ -70,3 +70,51 @@ TEST_CASE("ROMol::getNumHeavyAtoms", "[mol]") {
     return sum;
   };
 }
+
+// Per-bucket size + ring-count copy/dtor variants. Mirrors the
+// BENCH_ROMOL_COPY / BENCH_ROMOL_DTOR macros on the rdmol_benchmarks
+// branch so the master baseline runs the same matrix.
+
+#define BENCH_ROMOL_COPY(DATASET, SUFFIX, TAG)                                 \
+  TEST_CASE("ROMol copy constructor " SUFFIX, "[mol]" TAG) {                   \
+    auto samples = bench_common::load_samples(DATASET);                        \
+    BENCHMARK_ADVANCED("ROMol copy constructor " SUFFIX)(                      \
+        Catch::Benchmark::Chronometer meter) {                                 \
+      std::vector<Catch::Benchmark::storage_for<ROMol>> storage(               \
+          meter.runs() * samples.size());                                      \
+      meter.measure([&](int i) {                                               \
+        for (size_t sample = 0; sample < samples.size(); ++sample) {           \
+          storage[i * samples.size() + sample].construct(samples[sample]);     \
+        }                                                                      \
+      });                                                                      \
+    };                                                                         \
+  }
+
+#define BENCH_ROMOL_DTOR(DATASET, SUFFIX, TAG)                                 \
+  TEST_CASE("ROMol destructor " SUFFIX, "[mol]" TAG) {                         \
+    auto samples = bench_common::load_samples(DATASET);                        \
+    BENCHMARK_ADVANCED("ROMol destructor " SUFFIX)(                            \
+        Catch::Benchmark::Chronometer meter) {                                 \
+      std::vector<Catch::Benchmark::destructable_object<ROMol>> storage(       \
+          meter.runs() * samples.size());                                      \
+      for (size_t i = 0; i < storage.size(); ++i) {                            \
+        storage[i].construct(samples[i % samples.size()]);                     \
+      }                                                                        \
+      meter.measure([&](int i) {                                               \
+        for (size_t sample = 0; sample < samples.size(); ++sample) {           \
+          storage[i * samples.size() + sample].destruct();                     \
+        }                                                                      \
+      });                                                                      \
+    };                                                                         \
+  }
+
+#define BENCH_MOL_FOR(DATASET, SUFFIX, TAG)                                    \
+  BENCH_ROMOL_COPY(DATASET, SUFFIX, TAG)                                       \
+  BENCH_ROMOL_DTOR(DATASET, SUFFIX, TAG)
+
+using bench_common::Dataset;
+BENCH_MOL_FOR(Dataset::Size_00_20, "size 00-20", "[size_00_20]")
+BENCH_MOL_FOR(Dataset::Size_20_40, "size 20-40", "[size_20_40]")
+BENCH_MOL_FOR(Dataset::Size_40_60, "size 40-60", "[size_40_60]")
+BENCH_MOL_FOR(Dataset::Size_60_80, "size 60-80", "[size_60_80]")
+BENCH_MOL_FOR(Dataset::Rings_4, "rings 4", "[rings_4]")

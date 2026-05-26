@@ -19,6 +19,8 @@
 #include <GraphMol/PeriodicTable.h>
 #include <GraphMol/ROMol.h>
 #include <GraphMol/RingInfo.h>
+#include <GraphMol/Fingerprints/FingerprintUtil.h>
+#include <GraphMol/Fingerprints/MorganGenerator.h>
 
 #include "bench_common.hpp"
 
@@ -431,6 +433,45 @@ std::vector<RWMol> load_rwmol_samples(Dataset dataset) {
     };                                                                         \
   }
 
+// Composite per-atom / per-bond field-touch loops -- Morgan invariants.
+// Mirrors the corresponding section in the rdmol_benchmarks branch's
+// api_microbenchmarks.cpp.
+#define BENCH_MORGAN_ATOM_INVARIANTS(DATASET, SUFFIX, TAG)                     \
+  TEST_CASE("ROMol Morgan atom invariants " SUFFIX, "[mol_api]" TAG) {         \
+    auto raw = load_samples(DATASET);                                          \
+    auto samples = prime_samples(std::move(raw), [](ROMol &mol) {              \
+      MolOps::findSSSR(mol);                                                   \
+    });                                                                        \
+    size_t maxAtoms = 0;                                                       \
+    for (const auto &mol : samples) {                                          \
+      maxAtoms = std::max<size_t>(maxAtoms, mol.getNumAtoms());                \
+    }                                                                          \
+    std::vector<std::uint32_t> invars(maxAtoms, 0);                            \
+    BENCHMARK_ADVANCED("ROMol Morgan atom invariants " SUFFIX)                 \
+    (Catch::Benchmark::Chronometer meter) {                                    \
+      run_per_sample_readonly(samples, meter,                                  \
+                              [&invars](const ROMol &mol) {                    \
+        MorganFingerprints::getConnectivityInvariants(mol, invars, true);      \
+        return uint64_t(invars[0]);                                            \
+      });                                                                      \
+    };                                                                         \
+  }
+
+#define BENCH_MORGAN_BOND_INVARIANTS(DATASET, SUFFIX, TAG)                     \
+  TEST_CASE("ROMol Morgan bond invariants " SUFFIX, "[mol_api]" TAG) {         \
+    auto samples = load_samples(DATASET);                                      \
+    MorganFingerprint::MorganBondInvGenerator gen(/*useBondTypes=*/true,       \
+                                                  /*useChirality=*/false);     \
+    BENCHMARK_ADVANCED("ROMol Morgan bond invariants " SUFFIX)                 \
+    (Catch::Benchmark::Chronometer meter) {                                    \
+      run_per_sample_readonly(samples, meter, [&gen](const ROMol &mol) {       \
+        std::unique_ptr<std::vector<std::uint32_t>> invars(                    \
+            gen.getBondInvariants(mol));                                       \
+        return uint64_t(invars->empty() ? 0u : invars->front());               \
+      });                                                                      \
+    };                                                                         \
+  }
+
 #define BENCH_API_FOR(DATASET, SUFFIX, TAG)                                    \
   BENCH_MOVE_CTOR(DATASET, SUFFIX, TAG)                                        \
   BENCH_MOVE_ASSIGN(DATASET, SUFFIX, TAG)                                      \
@@ -448,7 +489,9 @@ std::vector<RWMol> load_rwmol_samples(Dataset dataset) {
   BENCH_ACCESSOR_DEGREE(DATASET, SUFFIX, TAG)                                  \
   BENCH_ACCESSOR_NUM_IMPLICIT_HS(DATASET, SUFFIX, TAG)                         \
   BENCH_RING_NUM_ATOM_RINGS(DATASET, SUFFIX, TAG)                              \
-  BENCH_RING_NUM_BOND_RINGS(DATASET, SUFFIX, TAG)
+  BENCH_RING_NUM_BOND_RINGS(DATASET, SUFFIX, TAG)                              \
+  BENCH_MORGAN_ATOM_INVARIANTS(DATASET, SUFFIX, TAG)                           \
+  BENCH_MORGAN_BOND_INVARIANTS(DATASET, SUFFIX, TAG)
 
 BENCH_API_FOR(Dataset::Canonical, "", "[canonical]")
 BENCH_API_FOR(Dataset::Size_00_20, "size 00-20", "[size_00_20]")
