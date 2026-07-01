@@ -25,9 +25,9 @@ unsigned int Seed::addAtom(const Atom *atom) {
   MoleculeFragment.Atoms.push_back(atom);
   MoleculeFragment.SeedAtomIdxMap[aqi] = i;
   Topology.addAtom(aqi);
-#ifdef DUP_SUBSTRUCT_CACHE
-  DupCacheKey.addAtom(aqi);
-#endif
+  if (TrackDuplicateSubstructCache) {
+    DupCacheKey.addAtom(aqi);
+  }
   return i;
 }
 
@@ -40,9 +40,9 @@ unsigned int Seed::addBond(const Bond *bond) {
   unsigned int i = MoleculeFragment.SeedAtomIdxMap.at(bond->getBeginAtomIdx());
   unsigned int j = MoleculeFragment.SeedAtomIdxMap.at(bond->getEndAtomIdx());
   Topology.addBond(bi, i, j);
-#ifdef DUP_SUBSTRUCT_CACHE
-  DupCacheKey.addBond(bi);
-#endif
+  if (TrackDuplicateSubstructCache) {
+    DupCacheKey.addBond(bi);
+  }
   return getNumBonds();
 }
 
@@ -171,6 +171,7 @@ void Seed::grow(MaximumCommonSubgraph &mcs) const {
 #ifdef VERBOSE_STATISTICS_ON
     ++mcs.VerboseStatistics.RemainingSizeRejected;
 #endif
+    ++mcs.Measurement.RemainingSizeRejected;
     return;
   }
 
@@ -195,12 +196,14 @@ void Seed::grow(MaximumCommonSubgraph &mcs) const {
 #ifdef VERBOSE_STATISTICS_ON
     ++mcs.VerboseStatistics.Seed;
 #endif
+    ++mcs.Measurement.Seed;
     if (!seed.canGrowBiggerThan(mcs.getMaxNumberBonds(),
                                 mcs.getMaxNumberAtoms())) {
       GrowingStage = NotSet;
 #ifdef VERBOSE_STATISTICS_ON
       ++mcs.VerboseStatistics.RemainingSizeRejected;
 #endif
+      ++mcs.Measurement.RemainingSizeRejected;
       return;  // the biggest possible subgraph from this seed is too small for
                // future growing. So, skip ALL children !
     }
@@ -225,6 +228,7 @@ void Seed::grow(MaximumCommonSubgraph &mcs) const {
 #ifdef VERBOSE_STATISTICS_ON
     { ++mcs.VerboseStatistics.Seed; }
 #endif
+    ++mcs.Measurement.Seed;
     Seed seed;
     seed.createFromParent(this);
 
@@ -251,11 +255,13 @@ void Seed::grow(MaximumCommonSubgraph &mcs) const {
 #ifdef VERBOSE_STATISTICS_ON
         ++mcs.VerboseStatistics.IndividualBondExcluded;
 #endif
+        ++mcs.Measurement.IndividualBondExcluded;
       }
     } else {  // seed too small
 #ifdef VERBOSE_STATISTICS_ON
       ++mcs.VerboseStatistics.RemainingSizeRejected;
 #endif
+      ++mcs.Measurement.RemainingSizeRejected;
     }
   }
 
@@ -314,6 +320,7 @@ void Seed::grow(MaximumCommonSubgraph &mcs) const {
 #ifdef VERBOSE_STATISTICS_ON
           ++mcs.VerboseStatistics.WrongCompositionRejected;
 #endif
+          ++mcs.Measurement.WrongCompositionRejected;
           continue;
         }
       }
@@ -321,6 +328,7 @@ void Seed::grow(MaximumCommonSubgraph &mcs) const {
 #ifdef VERBOSE_STATISTICS_ON
       { ++mcs.VerboseStatistics.Seed; }
 #endif
+      ++mcs.Measurement.Seed;
       Seed seed;
       seed.createFromParent(this);
       newAtomsSet.reset();
@@ -347,6 +355,7 @@ void Seed::grow(MaximumCommonSubgraph &mcs) const {
 #ifdef VERBOSE_STATISTICS_ON
         ++mcs.VerboseStatistics.RemainingSizeRejected;
 #endif
+        ++mcs.Measurement.RemainingSizeRejected;
       } else {
         seed.MatchResult = MatchResult;
         bool found = mcs.checkIfMatchAndAppend(seed);
@@ -360,6 +369,7 @@ void Seed::grow(MaximumCommonSubgraph &mcs) const {
 #ifdef VERBOSE_STATISTICS_ON
           ++mcs.VerboseStatistics.WrongCompositionDetected;
 #endif
+          ++mcs.Measurement.WrongCompositionDetected;
 #endif
         }
       }

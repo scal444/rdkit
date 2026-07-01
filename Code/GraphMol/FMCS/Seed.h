@@ -68,6 +68,7 @@ class RDKIT_FMCS_EXPORT Seed {
   // for multistage growing. all directly connected outgoing bonds
   mutable std::vector<NewBond> NewBonds;
   bool StoreAllDegenerateMCS = false;
+  bool TrackDuplicateSubstructCache = true;
 
  public:
   // this seed has been completely copied into list.
@@ -88,9 +89,7 @@ class RDKIT_FMCS_EXPORT Seed {
   unsigned int LastAddedBondsBeginIdx{0};
   unsigned int RemainingBonds{0};
   unsigned int RemainingAtoms{0};
-#ifdef DUP_SUBSTRUCT_CACHE
   DuplicatedSeedCache::TKey DupCacheKey;
-#endif
   // for each target
   std::vector<TargetMatch> MatchResult;
 
@@ -113,9 +112,8 @@ class RDKIT_FMCS_EXPORT Seed {
     RemainingBonds = src.RemainingBonds;
     RemainingAtoms = src.RemainingAtoms;
     StoreAllDegenerateMCS = src.StoreAllDegenerateMCS;
-#ifdef DUP_SUBSTRUCT_CACHE
+    TrackDuplicateSubstructCache = src.TrackDuplicateSubstructCache;
     DupCacheKey = src.DupCacheKey;
-#endif
     MatchResult = src.MatchResult;
     CopyComplete = true;  // LAST
     return *this;
@@ -127,9 +125,8 @@ class RDKIT_FMCS_EXPORT Seed {
     RemainingBonds = parent->RemainingBonds;
     RemainingAtoms = parent->RemainingAtoms;
     StoreAllDegenerateMCS = parent->StoreAllDegenerateMCS;
-#ifdef DUP_SUBSTRUCT_CACHE
+    TrackDuplicateSubstructCache = parent->TrackDuplicateSubstructCache;
     DupCacheKey = parent->DupCacheKey;
-#endif
     LastAddedAtomsBeginIdx = getNumAtoms();  // previous size
     LastAddedBondsBeginIdx = getNumBonds();  // previous size
     GrowingStage = 0;
@@ -153,6 +150,12 @@ class RDKIT_FMCS_EXPORT Seed {
   void fillNewBonds(const ROMol &qmol,
                     MaximumCommonSubgraph *mcs = nullptr) const;
   void setStoreAllDegenerateMCS(bool value) { StoreAllDegenerateMCS = value; }
+  void setUseDuplicateSubstructCache(bool value) {
+    TrackDuplicateSubstructCache = value;
+    if (!value) {
+      DupCacheKey = DuplicatedSeedCache::TKey();
+    }
+  }
 };
 }  // namespace FMCS
 }  // namespace RDKit

@@ -42,10 +42,8 @@
 //  amount of external bonds usually is very small.
 //  Exclude mismatched bonds combinations during seed growing (2^N-1 stage)
 
-#define FAST_SUBSTRUCT_CACHE  // based on a hash of Morgan code
-#define DUP_SUBSTRUCT_CACHE   // based on list of query atoms and bonds. For
-                              // rings where seeds growing in both directions
-                              // throw the same ring.
+// The hash-based and duplicate-seed substructure caches are compiled in and
+// controlled at runtime by MCSParameters.
 
 #define FAST_INCREMENTAL_MATCH  // fast and some time very useful. request
                                 // PRECOMPUTED_TABLES_MATCH

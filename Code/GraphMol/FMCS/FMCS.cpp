@@ -106,6 +106,10 @@ void parseMCSParametersJSON(const char *json, MCSParameters *params) {
   p.MaximizeBonds = pt.get<bool>("MaximizeBonds", p.MaximizeBonds);
   p.Threshold = pt.get<double>("Threshold", p.Threshold);
   p.Timeout = pt.get<unsigned int>("Timeout", p.Timeout);
+  p.UseFastSubstructCache =
+      pt.get<bool>("UseFastSubstructCache", p.UseFastSubstructCache);
+  p.UseDuplicateSubstructCache = pt.get<bool>(
+      "UseDuplicateSubstructCache", p.UseDuplicateSubstructCache);
   p.AtomCompareParameters.MatchValences =
       pt.get<bool>("MatchValences", p.AtomCompareParameters.MatchValences);
   p.AtomCompareParameters.MatchChiralTag =

@@ -327,6 +327,16 @@ class PyMCSParameters : public boost::noncopyable {
   void setTimeout(unsigned int value) { p->Timeout = value; }
   bool getVerbose() const { return p->Verbose; }
   void setVerbose(bool value) { p->Verbose = value; }
+  bool getUseFastSubstructCache() const { return p->UseFastSubstructCache; }
+  void setUseFastSubstructCache(bool value) {
+    p->UseFastSubstructCache = value;
+  }
+  bool getUseDuplicateSubstructCache() const {
+    return p->UseDuplicateSubstructCache;
+  }
+  void setUseDuplicateSubstructCache(bool value) {
+    p->UseDuplicateSubstructCache = value;
+  }
   const MCSAtomCompareParameters &getAtomCompareParameters() const {
     return p->AtomCompareParameters;
   }
@@ -647,6 +657,66 @@ python::object degenerateSmartsQueryMolDictHelper(
   }
   return res;
 }
+struct mcsmeasurement_wrapper {
+  static void wrap() {
+    python::class_<RDKit::MCSMeasurementData>(
+        "MCSMeasurementData", "FMCS execution measurements", python::no_init)
+        .def_readonly("useFastSubstructCache",
+                      &RDKit::MCSMeasurementData::UseFastSubstructCache)
+        .def_readonly("useDuplicateSubstructCache",
+                      &RDKit::MCSMeasurementData::UseDuplicateSubstructCache)
+        .def_readonly("elapsedTimeSeconds",
+                      &RDKit::MCSMeasurementData::ElapsedTimeSeconds)
+        .def_readonly("mcsFoundTimeSeconds",
+                      &RDKit::MCSMeasurementData::MCSFoundTimeSeconds)
+        .def_readonly("totalSteps", &RDKit::MCSMeasurementData::TotalSteps)
+        .def_readonly("mcsFoundStep",
+                      &RDKit::MCSMeasurementData::MCSFoundStep)
+        .def_readonly("initialSeeds", &RDKit::MCSMeasurementData::InitialSeed)
+        .def_readonly("mismatchedInitialSeeds",
+                      &RDKit::MCSMeasurementData::MismatchedInitialSeed)
+        .def_readonly("inspectedSeeds", &RDKit::MCSMeasurementData::Seed)
+        .def_readonly("remainingSizeRejected",
+                      &RDKit::MCSMeasurementData::RemainingSizeRejected)
+        .def_readonly("seedChecks", &RDKit::MCSMeasurementData::SeedCheck)
+        .def_readonly("individualBondExcluded",
+                      &RDKit::MCSMeasurementData::IndividualBondExcluded)
+        .def_readonly("matchCalls", &RDKit::MCSMeasurementData::MatchCall)
+        .def_readonly("matchFound", &RDKit::MCSMeasurementData::MatchCallTrue)
+        .def_readonly("fastMatchCalls",
+                      &RDKit::MCSMeasurementData::FastMatchCall)
+        .def_readonly("fastMatchFound",
+                      &RDKit::MCSMeasurementData::FastMatchCallTrue)
+        .def_readonly("slowMatchCalls",
+                      &RDKit::MCSMeasurementData::SlowMatchCall)
+        .def_readonly("slowMatchCallsDerived",
+                      &RDKit::MCSMeasurementData::SlowMatchCallDerived)
+        .def_readonly("slowMatchFound",
+                      &RDKit::MCSMeasurementData::SlowMatchCallTrue)
+        .def_readonly("exactMatchCalls",
+                      &RDKit::MCSMeasurementData::ExactMatchCall)
+        .def_readonly("exactMatchFound",
+                      &RDKit::MCSMeasurementData::ExactMatchCallTrue)
+        .def_readonly("findHashInCache",
+                      &RDKit::MCSMeasurementData::FindHashInCache)
+        .def_readonly("hashKeyFoundInCache",
+                      &RDKit::MCSMeasurementData::HashKeyFoundInCache)
+        .def_readonly("wrongCompositionRejected",
+                      &RDKit::MCSMeasurementData::WrongCompositionRejected)
+        .def_readonly("wrongCompositionDetected",
+                      &RDKit::MCSMeasurementData::WrongCompositionDetected)
+        .def_readonly("dupCacheFound",
+                      &RDKit::MCSMeasurementData::DupCacheFound)
+        .def_readonly("dupCacheFoundMatch",
+                      &RDKit::MCSMeasurementData::DupCacheFoundMatch)
+        .def_readonly("hashCacheKeys",
+                      &RDKit::MCSMeasurementData::HashCacheKeys)
+        .def_readonly("hashCacheEntries",
+                      &RDKit::MCSMeasurementData::HashCacheEntries)
+        .def_readonly("duplicateCacheEntries",
+                      &RDKit::MCSMeasurementData::DuplicateCacheEntries);
+  }
+};
 struct mcsresult_wrapper {
   static void wrap() {
     python::class_<RDKit::MCSResult>("MCSResult", "used to return MCS results",
@@ -661,6 +731,8 @@ struct mcsresult_wrapper {
                       "SMARTS string for the MCS")
         .def_readonly("canceled", &RDKit::MCSResult::Canceled,
                       "if True, the MCS calculation did not finish")
+        .def_readonly("measurement", &RDKit::MCSResult::Measurement,
+                      "FMCS execution measurements")
         .add_property(
             "degenerateSmartsQueryMolDict", degenerateSmartsQueryMolDictHelper,
             "Dictionary collecting all degenerate (SMARTS, queryMol) pairs "
@@ -672,6 +744,7 @@ struct mcsresult_wrapper {
 BOOST_PYTHON_MODULE(rdFMCS) {
   python::scope().attr("__doc__") =
       "Module containing a C++ implementation of the FMCS algorithm";
+  mcsmeasurement_wrapper::wrap();
   mcsresult_wrapper::wrap();
 
   python::enum_<RDKit::AtomComparator>("AtomCompare")
@@ -718,6 +791,14 @@ BOOST_PYTHON_MODULE(rdFMCS) {
                     "timeout (in seconds) for the calculation")
       .add_property("Verbose", &RDKit::PyMCSParameters::getVerbose,
                     &RDKit::PyMCSParameters::setVerbose, "toggles verbose mode")
+      .add_property("UseFastSubstructCache",
+                    &RDKit::PyMCSParameters::getUseFastSubstructCache,
+                    &RDKit::PyMCSParameters::setUseFastSubstructCache,
+                    "toggles the hash-based substructure cache")
+      .add_property("UseDuplicateSubstructCache",
+                    &RDKit::PyMCSParameters::getUseDuplicateSubstructCache,
+                    &RDKit::PyMCSParameters::setUseDuplicateSubstructCache,
+                    "toggles the duplicate seed substructure cache")
       .add_property("AtomCompareParameters",
                     python::make_function(
                         &RDKit::PyMCSParameters::getAtomCompareParameters,

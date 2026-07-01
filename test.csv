@@ -1,0 +1,219 @@
+descriptor,module,total_seconds,num_molecules,mean_us_per_mol,errors,substructure_search,fingerprint,extras
+qed,rdkit.Chem.QED,8.301015254226513,10000,830.1015254226513,0,heavy,none,Crippen MolLogP; MolSurf TPSA; rdMolDescriptors HBD/rotatable bonds; ~80+ structural-alert SMARTS; HBA acceptor SMARTS; GetSSSR for AROM
+BCUT2D_MWHI,rdkit.Chem.ChemUtils.DescriptorUtilities,4.050925398056279,10000,405.0925398056279,0,none,none,rdMolDescriptors.BCUT2D 8-vector (cached on mol); burden matrix + atomic mass props only
+BertzCT,rdkit.Chem.GraphDescriptors,3.5290385623811744,10000,352.90385623811744,0,none,none,graph topology; distance/adjacency matrix; path/enumeration heavy
+SPS,rdkit.Chem.SpacialScore,2.6749910009093583,10000,267.4991000909358,0,none,none,FindPotentialStereoBonds; FindMolChiralCenters; hybridization/ring iteration
+MaxAbsEStateIndex,rdkit.Chem.EState.EState,2.5668915584974457,10000,256.68915584974457,0,none,none,EStateIndices; distance matrix (Hall-Kier E-state)
+AvgIpc,rdkit.Chem.GraphDescriptors,2.2041213040211005,10000,220.41213040211005,0,none,none,graph topology; distance/adjacency matrix; path/enumeration heavy
+MolLogP,rdkit.Chem.Crippen,2.1180056669545593,10000,211.80056669545593,0,yes,none,CalcCrippenDescriptors/getCrippenAtomContribs (SMARTS per atom)
+MaxEStateIndex,rdkit.Chem.EState.EState,2.0333128372440115,10000,203.33128372440115,0,none,none,EStateIndices; distance matrix (Hall-Kier E-state)
+MinAbsEStateIndex,rdkit.Chem.EState.EState,2.0064446206524735,10000,200.64446206524735,0,none,none,EStateIndices; distance matrix (Hall-Kier E-state)
+Ipc,rdkit.Chem.GraphDescriptors,1.9863866144442,10000,198.63866144442,0,none,none,graph topology; distance/adjacency matrix; path/enumeration heavy
+MinEStateIndex,rdkit.Chem.EState.EState,1.9788686652318574,10000,197.88686652318574,0,none,none,EStateIndices; distance matrix (Hall-Kier E-state)
+__MolFromSmiles__,parsing,1.4579349169507623,10000,145.79349169507623,0,none,none,SmilesParse/MolFromSmiles
+SMR_VSA1,rdkit.Chem.MolSurf,1.1644818048662273,10000,116.44818048662273,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+BalabanJ,rdkit.Chem.GraphDescriptors,0.9487778926413739,10000,94.87778926413739,0,none,none,graph topology; distance/adjacency matrix
+Chi4n,rdkit.Chem.GraphDescriptors,0.9306197201949544,10000,93.06197201949544,0,none,none,graph topology; distance/adjacency matrix
+Chi4v,rdkit.Chem.GraphDescriptors,0.9224868394230725,10000,92.24868394230725,0,none,none,graph topology; distance/adjacency matrix
+MaxPartialCharge,rdkit.Chem.Descriptors,0.8329861314123264,10000,83.29861314123264,0,none,none,rdPartialCharges.ComputeGasteigerCharges (cached on mol)
+NumRotatableBonds,rdkit.Chem.Lipinski,0.7593353002012009,10000,75.93353002012009,0,yes,none,rdMolDescriptors.NumRotatableBonds; rotatable-bond SMARTS SubstructMatch
+Chi3n,rdkit.Chem.GraphDescriptors,0.658532078115968,10000,65.8532078115968,0,none,none,graph topology; distance/adjacency matrix
+Chi3v,rdkit.Chem.GraphDescriptors,0.6456915160524659,10000,64.56915160524659,0,none,none,graph topology; distance/adjacency matrix
+Kappa3,rdkit.Chem.GraphDescriptors,0.6380819936457556,10000,63.80819936457556,0,none,none,graph topology; distance/adjacency matrix
+NumValenceElectrons,rdkit.Chem.Descriptors,0.5936608156043803,10000,59.36608156043803,0,none,none,rdMolDescriptors mol weight / atom property scan
+Chi1,rdkit.Chem.GraphDescriptors,0.5762273086147616,10000,57.62273086147616,0,none,none,graph topology; distance/adjacency matrix
+Phi,rdkit.Chem.Lipinski,0.5364264152158285,10000,53.642641521582846,0,none,none,rdMolDescriptors.Phi; ring perception / graph invariants
+Chi2n,rdkit.Chem.GraphDescriptors,0.4775889059092151,10000,47.75889059092151,0,none,none,graph topology; distance/adjacency matrix
+FpDensityMorgan3,rdkit.Chem.Descriptors,0.4748660844634287,10000,47.48660844634287,0,none,Morgan sparse count FP r=3,rdFingerprintGenerator.GetMorganGenerator
+FpDensityMorgan1,rdkit.Chem.Descriptors,0.4500258319894783,10000,45.00258319894783,0,none,Morgan sparse count FP r=1,rdFingerprintGenerator.GetMorganGenerator
+Chi2v,rdkit.Chem.GraphDescriptors,0.44727619049081113,10000,44.72761904908111,0,none,none,graph topology; distance/adjacency matrix
+Kappa2,rdkit.Chem.GraphDescriptors,0.43138504767557606,10000,43.138504767557606,0,none,none,graph topology; distance/adjacency matrix
+NumHAcceptors,rdkit.Chem.Lipinski,0.42195421643555164,10000,42.195421643555164,0,yes,none,rdMolDescriptors.NumHAcceptors; Lipinski H-bond SMARTS SubstructMatch
+FpDensityMorgan2,rdkit.Chem.Descriptors,0.4154687243135413,10000,41.54687243135413,0,none,Morgan sparse count FP r=2,rdFingerprintGenerator.GetMorganGenerator
+EState_VSA1,rdkit.Chem.EState.EState_VSA,0.4032620001671603,10000,40.32620001671603,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+Chi0,rdkit.Chem.GraphDescriptors,0.37916507315821946,10000,37.916507315821946,0,none,none,graph topology; distance/adjacency matrix
+NumRadicalElectrons,rdkit.Chem.Descriptors,0.27858115703566,10000,27.858115703566,0,none,none,rdMolDescriptors mol weight / atom property scan
+fr_para_hydroxylation,rdkit.Chem.Fragments,0.2306903785211034,10000,23.06903785211034,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+PEOE_VSA1,rdkit.Chem.MolSurf,0.18274647057114635,10000,18.274647057114635,0,none,none,ComputeGasteigerCharges + Labute VSA binning (charge-based VSA)
+fr_Ndealkylation1,rdkit.Chem.Fragments,0.1557492502470268,10000,15.57492502470268,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_Ndealkylation2,rdkit.Chem.Fragments,0.1209541321877623,10000,12.09541321877623,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+PEOE_VSA10,rdkit.Chem.MolSurf,0.12018245809304062,10000,12.018245809304062,0,none,none,ComputeGasteigerCharges + Labute VSA binning (charge-based VSA)
+fr_aryl_methyl,rdkit.Chem.Fragments,0.12013106158701703,10000,12.013106158701703,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+TPSA,rdkit.Chem.MolSurf,0.11743449498317204,10000,11.743449498317204,0,none,none,rdMolDescriptors.CalcTPSA (atomic TPSA contribs)
+PEOE_VSA11,rdkit.Chem.MolSurf,0.11071289516985416,10000,11.071289516985416,0,none,none,ComputeGasteigerCharges + Labute VSA binning (charge-based VSA)
+PEOE_VSA14,rdkit.Chem.MolSurf,0.10965895988920238,10000,10.965895988920238,0,none,none,ComputeGasteigerCharges + Labute VSA binning (charge-based VSA)
+PEOE_VSA12,rdkit.Chem.MolSurf,0.1089446787518682,10000,10.89446787518682,0,none,none,ComputeGasteigerCharges + Labute VSA binning (charge-based VSA)
+PEOE_VSA2,rdkit.Chem.MolSurf,0.10832125853630714,10000,10.832125853630714,0,none,none,ComputeGasteigerCharges + Labute VSA binning (charge-based VSA)
+PEOE_VSA13,rdkit.Chem.MolSurf,0.10824189998675138,10000,10.824189998675138,0,none,none,ComputeGasteigerCharges + Labute VSA binning (charge-based VSA)
+PEOE_VSA5,rdkit.Chem.MolSurf,0.10823435938800685,10000,10.823435938800685,0,none,none,ComputeGasteigerCharges + Labute VSA binning (charge-based VSA)
+PEOE_VSA4,rdkit.Chem.MolSurf,0.10802983840403613,10000,10.802983840403613,0,none,none,ComputeGasteigerCharges + Labute VSA binning (charge-based VSA)
+PEOE_VSA6,rdkit.Chem.MolSurf,0.1078008850599872,10000,10.78008850599872,0,none,none,ComputeGasteigerCharges + Labute VSA binning (charge-based VSA)
+PEOE_VSA3,rdkit.Chem.MolSurf,0.10774396713532042,10000,10.774396713532042,0,none,none,ComputeGasteigerCharges + Labute VSA binning (charge-based VSA)
+PEOE_VSA7,rdkit.Chem.MolSurf,0.10769105337385554,10000,10.769105337385554,0,none,none,ComputeGasteigerCharges + Labute VSA binning (charge-based VSA)
+PEOE_VSA9,rdkit.Chem.MolSurf,0.1076071799325291,10000,10.76071799325291,0,none,none,ComputeGasteigerCharges + Labute VSA binning (charge-based VSA)
+PEOE_VSA8,rdkit.Chem.MolSurf,0.10754227596044075,10000,10.754227596044075,0,none,none,ComputeGasteigerCharges + Labute VSA binning (charge-based VSA)
+fr_phenol_noOrthoHbond,rdkit.Chem.Fragments,0.09474239571136422,10000,9.474239571136422,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+VSA_EState1,rdkit.Chem.EState.EState_VSA,0.08649241857347079,10000,8.649241857347079,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+fr_ArN,rdkit.Chem.Fragments,0.08644378451572265,10000,8.644378451572265,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_Al_COO,rdkit.Chem.Fragments,0.08499094791477546,10000,8.499094791477546,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_allylic_oxid,rdkit.Chem.Fragments,0.08472024394723121,10000,8.472024394723121,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_nitro_arom_nonortho,rdkit.Chem.Fragments,0.08016371687699575,10000,8.016371687699575,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_Al_OH_noTert,rdkit.Chem.Fragments,0.0790823125425959,10000,7.90823125425959,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_phos_ester,rdkit.Chem.Fragments,0.07885096386598889,10000,7.885096386598889,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_dihydropyridine,rdkit.Chem.Fragments,0.07741980320133734,10000,7.7419803201337345,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_azide,rdkit.Chem.Fragments,0.07632391224615276,10000,7.632391224615276,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_phos_acid,rdkit.Chem.Fragments,0.074137735486147,10000,7.413773548614699,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_benzene,rdkit.Chem.Fragments,0.07050739736587275,10000,7.050739736587275,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+LabuteASA,rdkit.Chem.MolSurf,0.06262542381591629,10000,6.262542381591629,0,none,none,rdMolDescriptors.CalcLabuteASA
+fr_Al_OH,rdkit.Chem.Fragments,0.06085461829206906,10000,6.085461829206906,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_C_O_noCOO,rdkit.Chem.Fragments,0.05146792362211272,10000,5.146792362211272,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+NumAmideBonds,rdkit.Chem.Lipinski,0.050702364882454276,10000,5.070236488245428,0,none,none,rdMolDescriptors.NumAmideBonds; ring perception / graph invariants
+fr_nitro_arom,rdkit.Chem.Fragments,0.04757168948708568,10000,4.757168948708568,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_HOCCN,rdkit.Chem.Fragments,0.046402742562349886,10000,4.640274256234989,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_ketone_Topliss,rdkit.Chem.Fragments,0.04607157535792794,10000,4.607157535792794,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+NumHDonors,rdkit.Chem.Lipinski,0.045155288942623883,10000,4.515528894262388,0,yes,none,rdMolDescriptors.NumHDonors; Lipinski H-bond SMARTS SubstructMatch
+fr_COO,rdkit.Chem.Fragments,0.039901327530969866,10000,3.990132753096987,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_azo,rdkit.Chem.Fragments,0.0386178224143805,10000,3.8617822414380503,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_ester,rdkit.Chem.Fragments,0.03710292778850999,10000,3.7102927788509987,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_amide,rdkit.Chem.Fragments,0.037079084853758104,10000,3.7079084853758104,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_piperdine,rdkit.Chem.Fragments,0.03609192821022589,10000,3.6091928210225888,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_alkyl_halide,rdkit.Chem.Fragments,0.03587723338569049,10000,3.587723338569049,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_nitro,rdkit.Chem.Fragments,0.035827817642712034,10000,3.5827817642712034,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_barbitur,rdkit.Chem.Fragments,0.03538975692936219,10000,3.5389756929362193,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+NumHeteroatoms,rdkit.Chem.Lipinski,0.03523670420690905,10000,3.5236704206909053,0,none,none,rdMolDescriptors.NumHeteroatoms; ring perception / graph invariants
+fr_aniline,rdkit.Chem.Fragments,0.03459947193914559,10000,3.4599471939145587,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_quatN,rdkit.Chem.Fragments,0.034123351259040646,10000,3.4123351259040646,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_NH0,rdkit.Chem.Fragments,0.033448573129135184,10000,3.3448573129135184,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_term_acetylene,rdkit.Chem.Fragments,0.03335849657014478,10000,3.335849657014478,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_unbrch_alkane,rdkit.Chem.Fragments,0.03333412064239383,10000,3.3334120642393827,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_alkyl_carbamate,rdkit.Chem.Fragments,0.03231909224996343,10000,3.2319092249963433,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+Chi0n,rdkit.Chem.GraphDescriptors,0.03192402685817797,10000,3.1924026858177967,0,none,none,graph topology; distance/adjacency matrix
+fr_C_O,rdkit.Chem.Fragments,0.031714858530904166,10000,3.1714858530904166,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_N_O,rdkit.Chem.Fragments,0.030033918141270988,10000,3.0033918141270988,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_ketone,rdkit.Chem.Fragments,0.028327811203780584,10000,2.8327811203780584,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_nitroso,rdkit.Chem.Fragments,0.027602476242464036,10000,2.7602476242464036,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_COO2,rdkit.Chem.Fragments,0.026899353732005693,10000,2.6899353732005693,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_Ar_N,rdkit.Chem.Fragments,0.026229467475786805,10000,2.6229467475786805,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_hdrzone,rdkit.Chem.Fragments,0.025992938739364035,10000,2.5992938739364035,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_pyridine,rdkit.Chem.Fragments,0.025933901037205942,10000,2.593390103720594,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_ether,rdkit.Chem.Fragments,0.025295017127064057,10000,2.5295017127064057,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_Ar_COO,rdkit.Chem.Fragments,0.025267142802476883,10000,2.5267142802476883,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_benzodiazepine,rdkit.Chem.Fragments,0.025119406389421783,10000,2.5119406389421783,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_NH1,rdkit.Chem.Fragments,0.024886177023290657,10000,2.4886177023290657,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_piperzine,rdkit.Chem.Fragments,0.024826002423651516,10000,2.4826002423651516,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_priamide,rdkit.Chem.Fragments,0.024721762907574885,10000,2.4721762907574885,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_lactam,rdkit.Chem.Fragments,0.024516652294551022,10000,2.4516652294551022,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_imide,rdkit.Chem.Fragments,0.024456501356326044,10000,2.4456501356326044,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_halogen,rdkit.Chem.Fragments,0.02359525418432895,10000,2.359525418432895,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_C_S,rdkit.Chem.Fragments,0.023553557562991045,10000,2.3553557562991045,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_lactone,rdkit.Chem.Fragments,0.023224784890771843,10000,2.3224784890771843,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_Imine,rdkit.Chem.Fragments,0.022853661692352034,10000,2.2853661692352034,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_tetrazole,rdkit.Chem.Fragments,0.02275890827877447,10000,2.275890827877447,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_oxazole,rdkit.Chem.Fragments,0.02213553867477458,10000,2.213553867477458,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_urea,rdkit.Chem.Fragments,0.021768843929748982,10000,2.176884392974898,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+SMR_VSA10,rdkit.Chem.MolSurf,0.02169266865530517,10000,2.169266865530517,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+fr_aldehyde,rdkit.Chem.Fragments,0.021410236629890278,10000,2.141023662989028,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+MolWt,rdkit.Chem.Descriptors,0.021031311014667153,10000,2.1031311014667153,0,none,none,rdMolDescriptors mol weight / atom property scan
+fr_Ar_OH,rdkit.Chem.Fragments,0.020886238795355894,10000,2.0886238795355894,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+Chi0v,rdkit.Chem.GraphDescriptors,0.020813314695260487,10000,2.0813314695260487,0,none,none,graph topology; distance/adjacency matrix
+fr_imidazole,rdkit.Chem.Fragments,0.020737188184284605,10000,2.0737188184284605,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_oxime,rdkit.Chem.Fragments,0.02065366241731681,10000,2.065366241731681,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_phenol,rdkit.Chem.Fragments,0.020351766841486096,10000,2.0351766841486096,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_hdrzine,rdkit.Chem.Fragments,0.02017240267014131,10000,2.017240267014131,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_bicyclic,rdkit.Chem.Fragments,0.019599733655923046,10000,1.9599733655923044,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_prisulfonamd,rdkit.Chem.Fragments,0.019567338764318265,10000,1.9567338764318265,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_methoxy,rdkit.Chem.Fragments,0.01938860592781566,10000,1.938860592781566,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_NH2,rdkit.Chem.Fragments,0.019269444936071523,10000,1.9269444936071525,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_amidine,rdkit.Chem.Fragments,0.019029016912099905,10000,1.9029016912099905,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+SlogP_VSA1,rdkit.Chem.MolSurf,0.018987596078659408,10000,1.8987596078659408,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+fr_guanido,rdkit.Chem.Fragments,0.01889715006109327,10000,1.889715006109327,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_sulfonamd,rdkit.Chem.Fragments,0.01868612963880878,10000,1.868612963880878,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_thiazole,rdkit.Chem.Fragments,0.018668840028112754,10000,1.8668840028112754,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_morpholine,rdkit.Chem.Fragments,0.01833864070067648,10000,1.8338640700676478,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_furan,rdkit.Chem.Fragments,0.018332116218516603,10000,1.8332116218516603,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_epoxide,rdkit.Chem.Fragments,0.01789226455730386,10000,1.789226455730386,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_Nhpyrrole,rdkit.Chem.Fragments,0.017413166991900653,10000,1.7413166991900653,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_isocyan,rdkit.Chem.Fragments,0.01687861503160093,10000,1.687861503160093,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_diazo,rdkit.Chem.Fragments,0.016870936495251954,10000,1.6870936495251954,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_Ar_NH,rdkit.Chem.Fragments,0.01679373357910663,10000,1.679373357910663,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_nitrile,rdkit.Chem.Fragments,0.01649342897871975,10000,1.6493428978719749,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+HallKierAlpha,rdkit.Chem.GraphDescriptors,0.01591677256510593,10000,1.591677256510593,0,none,none,graph topology; distance/adjacency matrix
+fr_sulfide,rdkit.Chem.Fragments,0.015537074868916534,10000,1.5537074868916534,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_SH,rdkit.Chem.Fragments,0.01515683438628912,10000,1.515683438628912,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_sulfone,rdkit.Chem.Fragments,0.015007902431534603,10000,1.5007902431534603,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_thiophene,rdkit.Chem.Fragments,0.014919478766387329,10000,1.4919478766387329,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_isothiocyan,rdkit.Chem.Fragments,0.01444872327556368,10000,1.444872327556368,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+fr_thiocyan,rdkit.Chem.Fragments,0.013941058976342902,10000,1.3941058976342902,0,yes,none,Fragments: GetSubstructMatches(uniquify) for one SMARTS
+NumBridgeheadAtoms,rdkit.Chem.Lipinski,0.013876617609639652,10000,1.3876617609639652,0,none,none,rdMolDescriptors.NumBridgeheadAtoms; ring perception / graph invariants
+MolMR,rdkit.Chem.Crippen,0.013384738282184117,10000,1.3384738282184117,0,yes,none,CalcCrippenDescriptors/getCrippenAtomContribs (SMARTS per atom)
+NHOHCount,rdkit.Chem.Lipinski,0.01313494319038,10000,1.313494319038,0,none,none,rdMolDescriptors.NHOHCount; ring perception / graph invariants
+NumAliphaticCarbocycles,rdkit.Chem.Lipinski,0.012413840391673148,10000,1.2413840391673148,0,none,none,rdMolDescriptors.NumAliphaticCarbocycles; ring perception / graph invariants
+FractionCSP3,rdkit.Chem.Lipinski,0.01198295877838973,10000,1.198295877838973,0,none,none,rdMolDescriptors.FractionCSP3; ring perception / graph invariants
+NumSaturatedCarbocycles,rdkit.Chem.Lipinski,0.011901105695869774,10000,1.1901105695869774,0,none,none,rdMolDescriptors.NumSaturatedCarbocycles; ring perception / graph invariants
+NumAliphaticHeterocycles,rdkit.Chem.Lipinski,0.011670075953588821,10000,1.167007595358882,0,none,none,rdMolDescriptors.NumAliphaticHeterocycles; ring perception / graph invariants
+Kappa1,rdkit.Chem.GraphDescriptors,0.01125279326515738,10000,1.125279326515738,0,none,none,graph topology; distance/adjacency matrix
+NumSpiroAtoms,rdkit.Chem.Lipinski,0.010964970380882733,10000,1.0964970380882733,0,none,none,rdMolDescriptors.NumSpiroAtoms; ring perception / graph invariants
+SMR_VSA2,rdkit.Chem.MolSurf,0.010748361426522024,10000,1.0748361426522024,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+HeavyAtomMolWt,rdkit.Chem.Descriptors,0.010634275560732931,10000,1.063427556073293,0,none,none,rdMolDescriptors mol weight / atom property scan
+BCUT2D_MWLOW,rdkit.Chem.ChemUtils.DescriptorUtilities,0.010344787195208482,10000,1.0344787195208482,0,none,none,rdMolDescriptors.BCUT2D 8-vector (cached on mol); burden matrix + atomic mass props only
+Chi1n,rdkit.Chem.GraphDescriptors,0.010265999153489247,10000,1.0265999153489247,0,none,none,graph topology; distance/adjacency matrix
+SlogP_VSA10,rdkit.Chem.MolSurf,0.010167350410483778,10000,1.0167350410483778,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+NumSaturatedHeterocycles,rdkit.Chem.Lipinski,0.00917195419606287,10000,0.917195419606287,0,none,none,rdMolDescriptors.NumSaturatedHeterocycles; ring perception / graph invariants
+SlogP_VSA11,rdkit.Chem.MolSurf,0.00885064882459119,10000,0.885064882459119,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SlogP_VSA3,rdkit.Chem.MolSurf,0.008768443556618877,10000,0.8768443556618877,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SlogP_VSA8,rdkit.Chem.MolSurf,0.008747517407755367,10000,0.8747517407755367,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SlogP_VSA12,rdkit.Chem.MolSurf,0.008744479302549735,10000,0.8744479302549735,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SlogP_VSA4,rdkit.Chem.MolSurf,0.008731084322789684,10000,0.8731084322789684,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SlogP_VSA2,rdkit.Chem.MolSurf,0.008671940930071287,10000,0.8671940930071287,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SMR_VSA3,rdkit.Chem.MolSurf,0.008621043190942146,10000,0.8621043190942146,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SlogP_VSA9,rdkit.Chem.MolSurf,0.008615403698058799,10000,0.8615403698058799,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SlogP_VSA5,rdkit.Chem.MolSurf,0.008555345615604892,10000,0.8555345615604892,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SlogP_VSA7,rdkit.Chem.MolSurf,0.008491374857840128,10000,0.8491374857840128,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SlogP_VSA6,rdkit.Chem.MolSurf,0.008479627416818403,10000,0.8479627416818403,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+HeavyAtomCount,rdkit.Chem.Lipinski,0.00839027161418926,10000,0.839027161418926,0,none,none,rdMolDescriptors.HeavyAtomCount; ring perception / graph invariants
+SMR_VSA4,rdkit.Chem.MolSurf,0.008334267753525637,10000,0.8334267753525637,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SMR_VSA5,rdkit.Chem.MolSurf,0.00832929732860066,10000,0.832929732860066,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SMR_VSA7,rdkit.Chem.MolSurf,0.008244185490184464,10000,0.8244185490184464,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SMR_VSA9,rdkit.Chem.MolSurf,0.008213693392463028,10000,0.8213693392463028,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SMR_VSA6,rdkit.Chem.MolSurf,0.008212481945520267,10000,0.8212481945520267,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+SMR_VSA8,rdkit.Chem.MolSurf,0.008206018159398809,10000,0.8206018159398809,0,yes,none,getCrippenAtomContribs + Labute VSA binning (MOE-type descriptor)
+NumAromaticCarbocycles,rdkit.Chem.Lipinski,0.00794543421943672,10000,0.794543421943672,0,none,none,rdMolDescriptors.NumAromaticCarbocycles; ring perception / graph invariants
+NumAromaticHeterocycles,rdkit.Chem.Lipinski,0.007828974179574288,10000,0.7828974179574288,0,none,none,rdMolDescriptors.NumAromaticHeterocycles; ring perception / graph invariants
+NOCount,rdkit.Chem.Lipinski,0.007342942582909018,10000,0.7342942582909018,0,none,none,rdMolDescriptors.NOCount; ring perception / graph invariants
+ExactMolWt,rdkit.Chem.Descriptors,0.007262878803885542,10000,0.7262878803885542,0,none,none,rdMolDescriptors mol weight / atom property scan
+MaxAbsPartialCharge,rdkit.Chem.Descriptors,0.007127961667720228,10000,0.7127961667720228,0,none,none,rdPartialCharges.ComputeGasteigerCharges (cached on mol)
+Chi1v,rdkit.Chem.GraphDescriptors,0.007052928296616301,10000,0.7052928296616301,0,none,none,graph topology; distance/adjacency matrix
+NumAtomStereoCenters,rdkit.Chem.Lipinski,0.0065570984879741445,10000,0.6557098487974145,0,none,none,rdMolDescriptors.NumAtomStereoCenters; ring perception / graph invariants
+EState_VSA10,rdkit.Chem.EState.EState_VSA,0.006439576885895804,10000,0.6439576885895804,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+NumSaturatedRings,rdkit.Chem.Lipinski,0.006411316091543995,10000,0.6411316091543995,0,none,none,rdMolDescriptors.NumSaturatedRings; ring perception / graph invariants
+NumUnspecifiedAtomStereoCenters,rdkit.Chem.Lipinski,0.006080698862206191,10000,0.6080698862206191,0,none,none,rdMolDescriptors.NumUnspecifiedAtomStereoCenters; ring perception / graph invariants
+NumAliphaticRings,rdkit.Chem.Lipinski,0.0060390579455997795,10000,0.603905794559978,0,none,none,rdMolDescriptors.NumAliphaticRings; ring perception / graph invariants
+MinPartialCharge,rdkit.Chem.Descriptors,0.005861112935235724,10000,0.5861112935235724,0,none,none,rdPartialCharges.ComputeGasteigerCharges (cached on mol)
+NumHeterocycles,rdkit.Chem.Lipinski,0.005470888616400771,10000,0.5470888616400771,0,none,none,rdMolDescriptors.NumHeterocycles; ring perception / graph invariants
+RingCount,rdkit.Chem.Lipinski,0.005339057228411548,10000,0.5339057228411548,0,none,none,rdMolDescriptors.RingCount; ring perception / graph invariants
+NumAromaticRings,rdkit.Chem.Lipinski,0.005163923880900256,10000,0.5163923880900256,0,none,none,rdMolDescriptors.NumAromaticRings; ring perception / graph invariants
+MinAbsPartialCharge,rdkit.Chem.Descriptors,0.00393486900429707,10000,0.393486900429707,0,none,none,rdPartialCharges.ComputeGasteigerCharges (cached on mol)
+BCUT2D_CHGHI,rdkit.Chem.ChemUtils.DescriptorUtilities,0.003535146388458088,10000,0.3535146388458088,0,none,none,rdMolDescriptors.BCUT2D 8-vector (cached on mol); burden matrix + Gasteiger charges; rdPartialCharges.ComputeGasteigerCharges
+VSA_EState10,rdkit.Chem.EState.EState_VSA,0.0033675462036626413,10000,0.33675462036626413,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+EState_VSA11,rdkit.Chem.EState.EState_VSA,0.002938295263447799,10000,0.2938295263447799,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+BCUT2D_CHGLO,rdkit.Chem.ChemUtils.DescriptorUtilities,0.002749194303760305,10000,0.2749194303760305,0,none,none,rdMolDescriptors.BCUT2D 8-vector (cached on mol); burden matrix + Gasteiger charges; rdPartialCharges.ComputeGasteigerCharges
+BCUT2D_LOGPHI,rdkit.Chem.ChemUtils.DescriptorUtilities,0.0024197807360906154,10000,0.24197807360906154,0,yes,none,rdMolDescriptors.BCUT2D 8-vector (cached on mol); burden matrix + Crippen atom contribs; getCrippenAtomContribs/SubstructMatch
+EState_VSA2,rdkit.Chem.EState.EState_VSA,0.002409104476100765,10000,0.24091044761007652,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+VSA_EState2,rdkit.Chem.EState.EState_VSA,0.0023805769451428205,10000,0.23805769451428205,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+EState_VSA3,rdkit.Chem.EState.EState_VSA,0.002342575171496719,10000,0.2342575171496719,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+VSA_EState6,rdkit.Chem.EState.EState_VSA,0.002307100221514702,10000,0.23071002215147018,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+EState_VSA4,rdkit.Chem.EState.EState_VSA,0.002281177061377093,10000,0.22811770613770932,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+EState_VSA7,rdkit.Chem.EState.EState_VSA,0.0022651403123745695,10000,0.22651403123745695,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+VSA_EState3,rdkit.Chem.EState.EState_VSA,0.002232914950582199,10000,0.22329149505821988,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+EState_VSA8,rdkit.Chem.EState.EState_VSA,0.002176751149818301,10000,0.21767511498183012,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+BCUT2D_LOGPLOW,rdkit.Chem.ChemUtils.DescriptorUtilities,0.0021576456929324195,10000,0.21576456929324195,0,yes,none,rdMolDescriptors.BCUT2D 8-vector (cached on mol); burden matrix + Crippen atom contribs; getCrippenAtomContribs/SubstructMatch
+VSA_EState7,rdkit.Chem.EState.EState_VSA,0.002149623920558952,10000,0.21496239205589518,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+EState_VSA5,rdkit.Chem.EState.EState_VSA,0.002127219282556325,10000,0.21272192825563252,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+VSA_EState4,rdkit.Chem.EState.EState_VSA,0.002118767806678079,10000,0.2118767806678079,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+BCUT2D_MRHI,rdkit.Chem.ChemUtils.DescriptorUtilities,0.0020681825699284673,10000,0.20681825699284673,0,yes,none,rdMolDescriptors.BCUT2D 8-vector (cached on mol); burden matrix + Crippen atom contribs; getCrippenAtomContribs/SubstructMatch
+EState_VSA6,rdkit.Chem.EState.EState_VSA,0.002043894972302951,10000,0.2043894972302951,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+VSA_EState9,rdkit.Chem.EState.EState_VSA,0.0020367432589409873,10000,0.20367432589409873,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+EState_VSA9,rdkit.Chem.EState.EState_VSA,0.0019975287868874148,10000,0.19975287868874148,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+VSA_EState5,rdkit.Chem.EState.EState_VSA,0.0019919339538319036,10000,0.19919339538319036,0,none,none,EStateIndices + Labute ASA contribs VSA binning
+BCUT2D_MRLOW,rdkit.Chem.ChemUtils.DescriptorUtilities,0.001982498783036135,10000,0.1982498783036135,0,yes,none,rdMolDescriptors.BCUT2D 8-vector (cached on mol); burden matrix + Crippen atom contribs; getCrippenAtomContribs/SubstructMatch
+VSA_EState8,rdkit.Chem.EState.EState_VSA,0.0019352784584043548,10000,0.19352784584043548,0,none,none,EStateIndices + Labute ASA contribs VSA binning

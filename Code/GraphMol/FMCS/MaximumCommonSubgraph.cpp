@@ -59,138 +59,137 @@ void MaximumCommonSubgraph::init(size_t startIdx) {
   QueryMolecule = Molecules.at(startIdx);
 
   Targets.clear();
-#ifdef FAST_SUBSTRUCT_CACHE
   QueryAtomLabels.clear();
   QueryBondLabels.clear();
   QueryAtomMatchTable.clear();
   QueryBondMatchTable.clear();
-#endif
-#ifdef DUP_SUBSTRUCT_CACHE
   DuplicateCache.clear();
-#endif
 
   size_t nq = 0;
-#ifdef FAST_SUBSTRUCT_CACHE
-  // fill out match tables
-  nq = QueryMolecule->getNumAtoms();
-  QueryAtomMatchTable.resize(nq, nq);
-  for (size_t aj = 0; aj < nq; aj++) {
-    for (size_t ai = 0; ai < nq; ai++) {
-      QueryAtomMatchTable.set(
-          ai, aj,
-          Parameters.AtomTyper(Parameters.AtomCompareParameters, *QueryMolecule,
-                               ai, *QueryMolecule, aj,
-                               Parameters.CompareFunctionsUserData));
+  if (Parameters.UseFastSubstructCache) {
+    // fill out match tables
+    nq = QueryMolecule->getNumAtoms();
+    QueryAtomMatchTable.resize(nq, nq);
+    for (size_t aj = 0; aj < nq; aj++) {
+      for (size_t ai = 0; ai < nq; ai++) {
+        QueryAtomMatchTable.set(
+            ai, aj,
+            Parameters.AtomTyper(Parameters.AtomCompareParameters,
+                                 *QueryMolecule, ai, *QueryMolecule, aj,
+                                 Parameters.CompareFunctionsUserData));
+      }
     }
-  }
-  nq = QueryMolecule->getNumBonds();
-  QueryBondMatchTable.resize(nq, nq);
-  for (size_t aj = 0; aj < nq; aj++) {
-    for (size_t ai = 0; ai < nq; ai++) {
-      QueryBondMatchTable.set(
-          ai, aj,
-          Parameters.BondTyper(Parameters.BondCompareParameters, *QueryMolecule,
-                               ai, *QueryMolecule, aj,
-                               Parameters.CompareFunctionsUserData));
+    nq = QueryMolecule->getNumBonds();
+    QueryBondMatchTable.resize(nq, nq);
+    for (size_t aj = 0; aj < nq; aj++) {
+      for (size_t ai = 0; ai < nq; ai++) {
+        QueryBondMatchTable.set(
+            ai, aj,
+            Parameters.BondTyper(Parameters.BondCompareParameters,
+                                 *QueryMolecule, ai, *QueryMolecule, aj,
+                                 Parameters.CompareFunctionsUserData));
+      }
     }
-  }
-  // Compute label values based on current functor and parameters for code
-  // Morgan correct computation.
-  unsigned int currentLabelValue = 1;
-  std::vector<LabelDefinition> labels;
-  nq = QueryMolecule->getNumAtoms();
-  QueryAtomLabels.resize(nq, NotSet);
-  for (size_t ai = 0; ai < nq; ++ai) {
-    if (MCSAtomCompareAny ==
-        Parameters.AtomTyper) {  // predefined functor without atom compare
-                                 // parameters
-      QueryAtomLabels[ai] = 1;
-    } else {
-      const auto atom = QueryMolecule->getAtomWithIdx(ai);
-      if (MCSAtomCompareElements ==
+    // Compute label values based on current functor and parameters for code
+    // Morgan correct computation.
+    unsigned int currentLabelValue = 1;
+    std::vector<LabelDefinition> labels;
+    nq = QueryMolecule->getNumAtoms();
+    QueryAtomLabels.resize(nq, NotSet);
+    for (size_t ai = 0; ai < nq; ++ai) {
+      if (MCSAtomCompareAny ==
           Parameters.AtomTyper) {  // predefined functor without atom compare
                                    // parameters
-        QueryAtomLabels[ai] = atom->getAtomicNum() |
-                              (Parameters.AtomCompareParameters.MatchValences
-                                   ? (atom->getTotalValence() >> 8)
-                                   : 0);
-      } else if (MCSAtomCompareIsotopes ==
-                 Parameters.AtomTyper) {  // predefined functor without atom
-                                          // compare parameters
-        QueryAtomLabels[ai] = atom->getAtomicNum() | (atom->getIsotope() >> 8) |
-                              (Parameters.AtomCompareParameters.MatchValences
-                                   ? (atom->getTotalValence() >> 16)
-                                   : 0);
+        QueryAtomLabels[ai] = 1;
+      } else {
+        const auto atom = QueryMolecule->getAtomWithIdx(ai);
+        if (MCSAtomCompareElements ==
+            Parameters.AtomTyper) {  // predefined functor without atom compare
+                                     // parameters
+          QueryAtomLabels[ai] =
+              atom->getAtomicNum() |
+              (Parameters.AtomCompareParameters.MatchValences
+                   ? (atom->getTotalValence() >> 8)
+                   : 0);
+        } else if (MCSAtomCompareIsotopes ==
+                   Parameters.AtomTyper) {  // predefined functor without atom
+                                            // compare parameters
+          QueryAtomLabels[ai] =
+              atom->getAtomicNum() | (atom->getIsotope() >> 8) |
+              (Parameters.AtomCompareParameters.MatchValences
+                   ? (atom->getTotalValence() >> 16)
+                   : 0);
+        } else {  // custom user defined functor
+          QueryAtomLabels[ai] = NotSet;
+          for (auto &label : labels) {
+            if (Parameters.AtomTyper(
+                    Parameters.AtomCompareParameters, *QueryMolecule,
+                    label.ItemIndex, *QueryMolecule, ai,
+                    Parameters.CompareFunctionsUserData)) {  // equal items
+              QueryAtomLabels[ai] = label.Value;
+              break;
+            }
+          }
+          if (NotSet ==
+              QueryAtomLabels.at(ai)) {  // not found -> create new label
+            QueryAtomLabels[ai] = ++currentLabelValue;
+            labels.emplace_back(ai, currentLabelValue);
+          }
+        }
+      }
+    }
+    labels.clear();
+    currentLabelValue = 1;
+    nq = QueryMolecule->getNumBonds();
+    QueryBondLabels.resize(nq, NotSet);
+    for (size_t aj = 0; aj < nq; ++aj) {
+      const Bond *bond = QueryMolecule->getBondWithIdx(aj);
+      unsigned ring = 0;
+      if (!Parameters.CompareFunctionsUserData &&
+          (Parameters.BondCompareParameters.CompleteRingsOnly ||
+           Parameters.BondCompareParameters.RingMatchesRingOnly)) {
+        // is bond in ring
+        ring = QueryMolecule->getRingInfo()->numBondRings(aj) ? 0 : 1;
+      }
+      if (MCSBondCompareAny == Parameters.BondTyper) {
+        QueryBondLabels[aj] = 1 | (ring >> 8);
+      } else if (MCSBondCompareOrderExact == Parameters.BondTyper) {
+        QueryBondLabels[aj] = (bond->getBondType() + 1) | (ring >> 8);
+      } else if (MCSBondCompareOrder == Parameters.BondTyper) {
+        auto order = bond->getBondType();
+        if (Bond::AROMATIC == order ||
+            Bond::ONEANDAHALF == order) {  // ignore Aromatization
+          order = Bond::SINGLE;
+        } else if (Bond::TWOANDAHALF == order) {
+          order = Bond::DOUBLE;
+        } else if (Bond::THREEANDAHALF == order) {
+          order = Bond::TRIPLE;
+        } else if (Bond::FOURANDAHALF == order) {
+          order = Bond::QUADRUPLE;
+        } else if (Bond::FIVEANDAHALF == order) {
+          order = Bond::QUINTUPLE;
+        }
+        QueryBondLabels[aj] = (order + 1) | (ring >> 8);
       } else {  // custom user defined functor
-        QueryAtomLabels[ai] = NotSet;
-        for (auto &label : labels) {
-          if (Parameters.AtomTyper(
-                  Parameters.AtomCompareParameters, *QueryMolecule,
-                  label.ItemIndex, *QueryMolecule, ai,
-                  Parameters.CompareFunctionsUserData)) {  // equal items
-            QueryAtomLabels[ai] = label.Value;
+        QueryBondLabels[aj] = NotSet;
+        for (const auto &label : labels) {
+          if (Parameters.BondTyper(
+                  Parameters.BondCompareParameters, *QueryMolecule,
+                  label.ItemIndex, *QueryMolecule, aj,
+                  Parameters
+                      .CompareFunctionsUserData)) {  // equal bonds + ring ...
+            QueryBondLabels[aj] = label.Value;
             break;
           }
         }
         if (NotSet ==
-            QueryAtomLabels.at(ai)) {  // not found -> create new label
-          QueryAtomLabels[ai] = ++currentLabelValue;
-          labels.emplace_back(ai, currentLabelValue);
+            QueryBondLabels.at(aj)) {  // not found -> create new label
+          QueryBondLabels[aj] = ++currentLabelValue;
+          labels.emplace_back(aj, currentLabelValue);
         }
       }
     }
   }
-  labels.clear();
-  currentLabelValue = 1;
-  nq = QueryMolecule->getNumBonds();
-  QueryBondLabels.resize(nq, NotSet);
-  for (size_t aj = 0; aj < nq; ++aj) {
-    const Bond *bond = QueryMolecule->getBondWithIdx(aj);
-    unsigned ring = 0;
-    if (!Parameters.CompareFunctionsUserData &&
-        (Parameters.BondCompareParameters.CompleteRingsOnly ||
-         Parameters.BondCompareParameters.RingMatchesRingOnly)) {
-      // is bond in ring
-      ring = QueryMolecule->getRingInfo()->numBondRings(aj) ? 0 : 1;
-    }
-    if (MCSBondCompareAny == Parameters.BondTyper) {
-      QueryBondLabels[aj] = 1 | (ring >> 8);
-    } else if (MCSBondCompareOrderExact == Parameters.BondTyper) {
-      QueryBondLabels[aj] = (bond->getBondType() + 1) | (ring >> 8);
-    } else if (MCSBondCompareOrder == Parameters.BondTyper) {
-      auto order = bond->getBondType();
-      if (Bond::AROMATIC == order ||
-          Bond::ONEANDAHALF == order) {  // ignore Aromatization
-        order = Bond::SINGLE;
-      } else if (Bond::TWOANDAHALF == order) {
-        order = Bond::DOUBLE;
-      } else if (Bond::THREEANDAHALF == order) {
-        order = Bond::TRIPLE;
-      } else if (Bond::FOURANDAHALF == order) {
-        order = Bond::QUADRUPLE;
-      } else if (Bond::FIVEANDAHALF == order) {
-        order = Bond::QUINTUPLE;
-      }
-      QueryBondLabels[aj] = (order + 1) | (ring >> 8);
-    } else {  // custom user defined functor
-      QueryBondLabels[aj] = NotSet;
-      for (const auto &label : labels) {
-        if (Parameters.BondTyper(
-                Parameters.BondCompareParameters, *QueryMolecule,
-                label.ItemIndex, *QueryMolecule, aj,
-                Parameters
-                    .CompareFunctionsUserData)) {  // equal bonds + ring ...
-          QueryBondLabels[aj] = label.Value;
-          break;
-        }
-      }
-      if (NotSet == QueryBondLabels.at(aj)) {  // not found -> create new label
-        QueryBondLabels[aj] = ++currentLabelValue;
-        labels.emplace_back(aj, currentLabelValue);
-      }
-    }
-  }
-#endif
   Targets.resize(Molecules.size() - 1);
   size_t i = 0;
   for (auto it = Molecules.begin() + 1; it != Molecules.end(); it++, i++) {
@@ -277,6 +276,8 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
     for (const auto &ms : matching_substructs) {
       Seed seed;
       seed.setStoreAllDegenerateMCS(Parameters.StoreAll);
+      seed.setUseDuplicateSubstructCache(
+          Parameters.UseDuplicateSubstructCache);
       seed.ExcludedBonds = excludedBonds;
       seed.MatchResult.resize(Targets.size());
 #ifdef VERBOSE_STATISTICS_ON
@@ -285,6 +286,8 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
         ++VerboseStatistics.InitialSeed;
       }
 #endif
+      ++Measurement.Seed;
+      ++Measurement.InitialSeed;
       // add all matched atoms of the matched query fragment
       std::map<unsigned int, unsigned int> initialSeedToQueryAtom;
       for (const auto &msb : ms) {
@@ -344,6 +347,8 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
       //    continue;
       Seed seed;
       seed.setStoreAllDegenerateMCS(Parameters.StoreAll);
+      seed.setUseDuplicateSubstructCache(
+          Parameters.UseDuplicateSubstructCache);
       seed.MatchResult.resize(Targets.size());
 
 #ifdef VERBOSE_STATISTICS_ON
@@ -352,6 +357,8 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
         ++VerboseStatistics.InitialSeed;
       }
 #endif
+      ++Measurement.Seed;
+      ++Measurement.InitialSeed;
       seed.addAtom(wb.BondPtr->getBeginAtom());
       seed.addAtom(wb.BondPtr->getEndAtom());
       seed.ExcludedBonds = excludedBonds;  // all bonds from first to current
@@ -376,6 +383,7 @@ void MaximumCommonSubgraph::makeInitialSeeds() {
 #ifdef VERBOSE_STATISTICS_ON
         ++VerboseStatistics.MismatchedInitialSeed;
 #endif
+        ++Measurement.MismatchedInitialSeed;
       }
     }
   }
@@ -525,6 +533,7 @@ bool checkIfShouldAcceptMCS(const FMCS::MolFragment &f, const ROMol &query,
     return true;
   }
   Seed seed;  // result MCS
+  seed.setUseDuplicateSubstructCache(false);
   seed.ExcludedBonds.resize(query.getNumBonds(), false);
 
   for (const auto &atom : f.Atoms) {
@@ -593,6 +602,7 @@ bool MaximumCommonSubgraph::growSeeds() {
 #ifdef VERBOSE_STATISTICS_ON
     VerboseStatistics.TotalSteps++;
 #endif
+    Measurement.TotalSteps++;
     auto si = Seeds.begin();
 
     si->grow(*this);
@@ -630,6 +640,9 @@ bool MaximumCommonSubgraph::growSeeds() {
           VerboseStatistics.MCSFoundStep = VerboseStatistics.TotalSteps;
           VerboseStatistics.MCSFoundTime = nanoClock();
 #endif
+          Measurement.MCSFoundStep = Measurement.TotalSteps;
+          Measurement.MCSFoundTimeSeconds =
+              double(nanoClock() - To) / 1000000.;
           McsIdx.Atoms = fs.MoleculeFragment.Atoms;
           McsIdx.Bonds = fs.MoleculeFragment.Bonds;
           if (Parameters.Verbose) {
@@ -694,6 +707,7 @@ MaximumCommonSubgraph::generateResultSMARTSAndQueryMol(
   // or template
   Seed seed;  // result MCS
   seed.setStoreAllDegenerateMCS(Parameters.StoreAll);
+  seed.setUseDuplicateSubstructCache(false);
   seed.ExcludedBonds.resize(mcsIdx.QueryMolecule->getNumBonds(), false);
   std::vector<AtomMatchSet> atomMatchResult(mcsIdx.Targets.size());
   std::vector<unsigned int> atomIdxMap(mcsIdx.QueryMolecule->getNumAtoms());
@@ -862,6 +876,7 @@ bool MaximumCommonSubgraph::createSeedFromMCS(size_t newQueryTarget,
                                               Seed &newSeed) {
   Seed mcs;
   mcs.setStoreAllDegenerateMCS(Parameters.StoreAll);
+  mcs.setUseDuplicateSubstructCache(false);
   mcs.ExcludedBonds.resize(McsIdx.QueryMolecule->getNumBonds(), false);
   std::vector<unsigned int> mcsAtomIdxMap(McsIdx.QueryMolecule->getNumAtoms());
 
@@ -885,6 +900,8 @@ bool MaximumCommonSubgraph::createSeedFromMCS(size_t newQueryTarget,
 
   AtomMatchSet atomMatchResult(mcs.getNumAtoms());
 
+  newSeed.setUseDuplicateSubstructCache(
+      Parameters.UseDuplicateSubstructCache);
   newSeed.ExcludedBonds.resize(newQuery.Molecule->getNumBonds(), false);
 
   for (const auto &m : match) {
@@ -911,6 +928,10 @@ bool MaximumCommonSubgraph::createSeedFromMCS(size_t newQueryTarget,
 
 MCSResult MaximumCommonSubgraph::find(const std::vector<ROMOL_SPTR> &src_mols) {
   clear();
+  Measurement = MCSMeasurementData();
+  Measurement.UseFastSubstructCache = Parameters.UseFastSubstructCache;
+  Measurement.UseDuplicateSubstructCache =
+      Parameters.UseDuplicateSubstructCache;
   MCSResult res;
 
   if (src_mols.size() < 2) {
@@ -1111,20 +1132,35 @@ MCSResult MaximumCommonSubgraph::find(const std::vector<ROMOL_SPTR> &src_mols) {
               << VerboseStatistics.DupCacheFound -
                      VerboseStatistics.DupCacheFoundMatch
               << " mismatched\n";
-#ifdef FAST_SUBSTRUCT_CACHE
-    std::cout << "HashCache size  = " << HashCache.keyssize() << " keys\n";
-    std::cout << "HashCache size  = " << HashCache.fullsize() << " entries\n";
-    std::cout << "FindHashInCache = " << VerboseStatistics.FindHashInCache
-              << "\n";
-    std::cout << "HashFoundInCache= " << VerboseStatistics.HashKeyFoundInCache
-              << "\n";
-    std::cout << "ExactMatchCalls = " << VerboseStatistics.ExactMatchCall
-              << "\n"
-              << "ExactMatchFound = " << VerboseStatistics.ExactMatchCallTrue
-              << "\n";
-#endif
+    if (Parameters.UseFastSubstructCache) {
+      std::cout << "HashCache size  = " << HashCache.keyssize() << " keys\n";
+      std::cout << "HashCache size  = " << HashCache.fullsize()
+                << " entries\n";
+      std::cout << "FindHashInCache = " << VerboseStatistics.FindHashInCache
+                << "\n";
+      std::cout << "HashFoundInCache= "
+                << VerboseStatistics.HashKeyFoundInCache << "\n";
+      std::cout << "ExactMatchCalls = " << VerboseStatistics.ExactMatchCall
+                << "\n"
+                << "ExactMatchFound = " << VerboseStatistics.ExactMatchCallTrue
+                << "\n";
+    }
   }
 #endif
+
+  Measurement.ElapsedTimeSeconds = double(nanoClock() - To) / 1000000.;
+  Measurement.SlowMatchCallDerived =
+      Measurement.MatchCall - Measurement.FastMatchCallTrue;
+  if (Parameters.UseFastSubstructCache) {
+    Measurement.HashCacheKeys = static_cast<unsigned int>(HashCache.keyssize());
+    Measurement.HashCacheEntries =
+        static_cast<unsigned int>(HashCache.fullsize());
+  }
+  if (Parameters.UseDuplicateSubstructCache) {
+    Measurement.DuplicateCacheEntries =
+        static_cast<unsigned int>(DuplicateCache.size());
+  }
+  res.Measurement = Measurement;
 
   auto pos = faked_ring_info.find_first();
   while (pos != boost::dynamic_bitset<>::npos) {
@@ -1140,40 +1176,41 @@ bool MaximumCommonSubgraph::checkIfMatchAndAppend(Seed &seed) {
 #ifdef VERBOSE_STATISTICS_ON
   ++VerboseStatistics.SeedCheck;
 #endif
-#ifdef FAST_SUBSTRUCT_CACHE
+  ++Measurement.SeedCheck;
   SubstructureCache::HashKey cacheKey;
   SubstructureCache::TIndexEntry *cacheEntry = nullptr;
-#endif
 
   bool foundInCache = false;
   bool foundInDupCache = false;
 
   {
-#ifdef DUP_SUBSTRUCT_CACHE
-    if (DuplicateCache.find(seed.DupCacheKey, foundInCache)) {
+    if (Parameters.UseDuplicateSubstructCache &&
+        DuplicateCache.find(seed.DupCacheKey, foundInCache)) {
 // duplicate found. skip match() but store both seeds, because they will grow by
 // different paths !!!
 #ifdef VERBOSE_STATISTICS_ON
       VerboseStatistics.DupCacheFound++;
       VerboseStatistics.DupCacheFoundMatch += foundInCache ? 1 : 0;
 #endif
+      Measurement.DupCacheFound++;
+      Measurement.DupCacheFoundMatch += foundInCache ? 1 : 0;
       if (!foundInCache) {  // mismatched !!!
         return false;
       }
     }
     foundInDupCache = foundInCache;
-#endif
-#ifdef FAST_SUBSTRUCT_CACHE
-    if (!foundInCache) {
+    if (Parameters.UseFastSubstructCache && !foundInCache) {
 #ifdef VERBOSE_STATISTICS_ON
       ++VerboseStatistics.FindHashInCache;
 #endif
+      ++Measurement.FindHashInCache;
       cacheEntry =
           HashCache.find(seed, QueryAtomLabels, QueryBondLabels, cacheKey);
       if (cacheEntry) {  // possibly found. check for hash collision
 #ifdef VERBOSE_STATISTICS_ON
         ++VerboseStatistics.HashKeyFoundInCache;
 #endif
+        ++Measurement.HashKeyFoundInCache;
         // check hash collisions (time +3%):
         for (const auto &g : *cacheEntry) {
           if (g.m_vertices.size() != seed.getNumAtoms() ||
@@ -1183,6 +1220,7 @@ bool MaximumCommonSubgraph::checkIfMatchAndAppend(Seed &seed) {
 #ifdef VERBOSE_STATISTICS_ON
           ++VerboseStatistics.ExactMatchCall;
 #endif
+          ++Measurement.ExactMatchCall;
           // EXACT MATCH
           foundInCache = SubstructMatchCustomTable(
               g, *QueryMolecule, seed.Topology, *QueryMolecule,
@@ -1190,14 +1228,16 @@ bool MaximumCommonSubgraph::checkIfMatchAndAppend(Seed &seed) {
 #ifdef VERBOSE_STATISTICS_ON
           if (foundInCache) {
             ++VerboseStatistics.ExactMatchCallTrue;
+          }
+#endif
+          if (foundInCache) {
+            ++Measurement.ExactMatchCallTrue;
           } else {
             break;
           }
-#endif
         }
       }
     }
-#endif
   }
   bool found = foundInCache;
 
@@ -1213,27 +1253,21 @@ bool MaximumCommonSubgraph::checkIfMatchAndAppend(Seed &seed) {
       newSeed = &Seeds.add(seed);
       newSeed->CopyComplete = false;
 
-#ifdef DUP_SUBSTRUCT_CACHE
-      if (!foundInDupCache &&
+      if (Parameters.UseDuplicateSubstructCache && !foundInDupCache &&
           seed.getNumBonds() >= 3) {  // only seed with a ring
                                       // can be duplicated -
                                       // do not store very
                                       // small seed in cache
         DuplicateCache.add(seed.DupCacheKey, true);
       }
-#endif
-#ifdef FAST_SUBSTRUCT_CACHE
-      if (!foundInCache) {
+      if (Parameters.UseFastSubstructCache && !foundInCache) {
         HashCache.add(seed, cacheKey, cacheEntry);
       }
-#endif
     } else {
-#ifdef DUP_SUBSTRUCT_CACHE
-      if (seed.getNumBonds() > 3) {
+      if (Parameters.UseDuplicateSubstructCache && seed.getNumBonds() > 3) {
         DuplicateCache.add(seed.DupCacheKey,
                            false);  // opt. cache mismatched duplicates too
       }
-#endif
     }
   }
   if (newSeed) {
@@ -1256,11 +1290,13 @@ bool MaximumCommonSubgraph::match(Seed &seed) {
       ++VerboseStatistics.MatchCall;
     }
 #endif
+    ++Measurement.MatchCall;
     bool target_matched = false;
     if (!seed.MatchResult.empty() && !seed.MatchResult.at(itarget).empty()) {
       target_matched = matchIncrementalFast(seed, itarget);
     }
     if (!target_matched) {  // slow full match
+      ++Measurement.SlowMatchCall;
       match_V_t match;      // THERE IS NO Bonds match INFO !!!!
       target_matched = SubstructMatchCustomTable(
           tag.Topology, *tag.Molecule, seed.Topology, *QueryMolecule,
@@ -1279,6 +1315,9 @@ bool MaximumCommonSubgraph::match(Seed &seed) {
         ++VerboseStatistics.SlowMatchCallTrue;
       }
 #endif
+      if (target_matched) {
+        ++Measurement.SlowMatchCallTrue;
+      }
     }
 
     if (target_matched) {
@@ -1295,6 +1334,7 @@ bool MaximumCommonSubgraph::match(Seed &seed) {
 #ifdef VERBOSE_STATISTICS_ON
     ++VerboseStatistics.MatchCallTrue;
 #endif
+    ++Measurement.MatchCallTrue;
     return true;
   }
   return false;
@@ -1309,6 +1349,7 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed &seed,
     ++VerboseStatistics.FastMatchCall;
   }
 #endif
+  ++Measurement.FastMatchCall;
   const auto &target = Targets.at(itarget);
   auto &match = seed.MatchResult.at(itarget);
   if (match.empty()) {
@@ -1453,6 +1494,9 @@ bool MaximumCommonSubgraph::matchIncrementalFast(Seed &seed,
     ++VerboseStatistics.FastMatchCallTrue;
   }
 #endif
+  if (matched) {
+    ++Measurement.FastMatchCallTrue;
+  }
   return matched;
 }
 }  // namespace FMCS

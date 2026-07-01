@@ -159,6 +159,8 @@ struct RDKIT_FMCS_EXPORT MCSParameters {
   double Threshold = 1.0;    // match all molecules
   unsigned int Timeout = 0;  // in seconds
   bool Verbose = false;
+  bool UseFastSubstructCache = true;
+  bool UseDuplicateSubstructCache = true;
   MCSAtomCompareParameters AtomCompareParameters;
   MCSBondCompareParameters BondCompareParameters;
   MCSAtomCompareFunction AtomTyper = MCSAtomCompareElements;
@@ -182,6 +184,39 @@ struct RDKIT_FMCS_EXPORT MCSParameters {
   void setMCSBondTyperFromConstChar(const char *bondComp);
 };
 
+struct RDKIT_FMCS_EXPORT MCSMeasurementData {
+  bool UseFastSubstructCache{true};
+  bool UseDuplicateSubstructCache{true};
+  double ElapsedTimeSeconds{0.0};
+  double MCSFoundTimeSeconds{0.0};
+  unsigned int TotalSteps{0};
+  unsigned int MCSFoundStep{0};
+  unsigned int InitialSeed{0};
+  unsigned int MismatchedInitialSeed{0};
+  unsigned int Seed{0};
+  unsigned int RemainingSizeRejected{0};
+  unsigned int SeedCheck{0};
+  unsigned int IndividualBondExcluded{0};
+  unsigned int MatchCall{0};
+  unsigned int MatchCallTrue{0};
+  unsigned int FastMatchCall{0};
+  unsigned int FastMatchCallTrue{0};
+  unsigned int SlowMatchCall{0};
+  unsigned int SlowMatchCallDerived{0};
+  unsigned int SlowMatchCallTrue{0};
+  unsigned int ExactMatchCall{0};
+  unsigned int ExactMatchCallTrue{0};
+  unsigned int FindHashInCache{0};
+  unsigned int HashKeyFoundInCache{0};
+  unsigned int WrongCompositionRejected{0};
+  unsigned int WrongCompositionDetected{0};
+  unsigned int DupCacheFound{0};
+  unsigned int DupCacheFoundMatch{0};
+  unsigned int HashCacheKeys{0};
+  unsigned int HashCacheEntries{0};
+  unsigned int DuplicateCacheEntries{0};
+};
+
 namespace detail {
 struct MCSParametersInternal : public MCSParameters {
   MCSParametersInternal() {}
@@ -199,6 +234,7 @@ struct RDKIT_FMCS_EXPORT MCSResult {
                          // callback. Contains valid current MCS !
   ROMOL_SPTR QueryMol;
   std::map<std::string, ROMOL_SPTR> DegenerateSmartsQueryMolDict;
+  MCSMeasurementData Measurement;
 
  public:
   MCSResult() {}
