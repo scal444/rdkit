@@ -851,6 +851,138 @@ bool finalChiralChecks(RDGeom::PointPtrVect *positions,
   return true;
 }
 
+// Embedding workflow, returns true on success;
+bool tryEmbedOnce(RDGeom::PointPtrVect *positions, detail::EmbedArgs eargs,
+                  EmbedParameters &embedParams, TimePoint *end_time,
+                  RDNumeric::DoubleSymmMatrix distMat,
+                  RDKit::double_source_type *rng, bool &gotCoords,
+                  unsigned int &iter) {
+  ++iter;
+  if (embedParams.callback != nullptr) {
+    embedParams.callback(iter);
+  }
+  if (ControlCHandler::getGotSignal()) {
+    return false;
+  }
+  gotCoords = EmbeddingOps::generateInitialCoords(positions, eargs, embedParams,
+                                                  distMat, rng);
+  if (!gotCoords) {
+    if (embedParams.trackFailures) {
+#ifdef RDK_BUILD_THREADSAFE_SSS
+      std::lock_guard<std::mutex> lock(GetFailMutex());
+#endif
+      embedParams.failures[EmbedFailureCauses::INITIAL_COORDS]++;
+    }
+  } else {
+    if (ControlCHandler::getGotSignal()) {
+      return false;
+    }
+    gotCoords = EmbeddingOps::firstMinimization(positions, eargs, embedParams);
+    if (!gotCoords) {
+      if (embedParams.trackFailures) {
+#ifdef RDK_BUILD_THREADSAFE_SSS
+        std::lock_guard<std::mutex> lock(GetFailMutex());
+#endif
+        embedParams.failures[EmbedFailureCauses::FIRST_MINIMIZATION]++;
+      }
+    } else {
+      gotCoords =
+          EmbeddingOps::checkTetrahedralCenters(positions, eargs, embedParams);
+      if (!gotCoords) {
+        if (embedParams.trackFailures) {
+#ifdef RDK_BUILD_THREADSAFE_SSS
+          std::lock_guard<std::mutex> lock(GetFailMutex());
+#endif
+          embedParams.failures[EmbedFailureCauses::CHECK_TETRAHEDRAL_CENTERS]++;
+        }
+      }
+    }
+
+    // Check if any of our chiral centers are badly out of whack.
+    if (gotCoords && embedParams.enforceChirality &&
+        eargs.chiralCenters->size() > 0) {
+      gotCoords =
+          EmbeddingOps::checkChiralCenters(positions, eargs, embedParams);
+      if (!gotCoords) {
+        if (embedParams.trackFailures) {
+#ifdef RDK_BUILD_THREADSAFE_SSS
+          std::lock_guard<std::mutex> lock(GetFailMutex());
+#endif
+          embedParams.failures[EmbedFailureCauses::CHECK_CHIRAL_CENTERS]++;
+        }
+      }
+    }
+    // redo the minimization if we have a chiral center
+    // or have started from random coords.
+    if (gotCoords &&
+        (eargs.chiralCenters->size() > 0 || embedParams.useRandomCoords)) {
+      if (ControlCHandler::getGotSignal()) {
+        return false;
+      }
+      gotCoords = EmbeddingOps::minimizeFourthDimension(positions, eargs,
+                                                        embedParams, end_time);
+      if (!gotCoords) {
+        if (embedParams.trackFailures) {
+#ifdef RDK_BUILD_THREADSAFE_SSS
+          std::lock_guard<std::mutex> lock(GetFailMutex());
+#endif
+          if (end_time != nullptr && Clock::now() > *end_time) {
+            embedParams.failures[EmbedFailureCauses::EXCEEDED_TIMEOUT]++;
+          }
+          embedParams.failures[EmbedFailureCauses::MINIMIZE_FOURTH_DIMENSION]++;
+        }
+      }
+    }
+
+    // (ET)(K)DG
+    if (gotCoords && (embedParams.useExpTorsionAnglePrefs ||
+                      embedParams.useBasicKnowledge)) {
+      if (ControlCHandler::getGotSignal()) {
+        return false;
+      }
+      gotCoords =
+          EmbeddingOps::minimizeWithExpTorsions(*positions, eargs, embedParams);
+      if (!gotCoords) {
+        if (embedParams.trackFailures) {
+#ifdef RDK_BUILD_THREADSAFE_SSS
+          std::lock_guard<std::mutex> lock(GetFailMutex());
+#endif
+          embedParams.failures[EmbedFailureCauses::ETK_MINIMIZATION]++;
+        }
+      }
+    }
+    if (gotCoords) {
+      gotCoords = EmbeddingOps::doubleBondGeometryChecks(*positions, eargs,
+                                                         embedParams);
+      if (!gotCoords && embedParams.trackFailures) {
+#ifdef RDK_BUILD_THREADSAFE_SSS
+        std::lock_guard<std::mutex> lock(GetFailMutex());
+#endif
+        embedParams.failures[EmbedFailureCauses::LINEAR_DOUBLE_BOND]++;
+      }
+    }
+    // test if stereo is correct
+    if (embedParams.enforceChirality && gotCoords) {
+      if (!eargs.chiralCenters->empty()) {
+        // test if chirality is correct. Any additional test failures
+        // will be tracked there if necessary.
+        gotCoords =
+            EmbeddingOps::finalChiralChecks(positions, eargs, embedParams);
+      }
+      if (gotCoords && !eargs.stereoDoubleBonds->empty()) {
+        gotCoords = EmbeddingOps::doubleBondStereoChecks(*positions, eargs,
+                                                         embedParams);
+        if (!gotCoords && embedParams.trackFailures) {
+#ifdef RDK_BUILD_THREADSAFE_SSS
+          std::lock_guard<std::mutex> lock(GetFailMutex());
+#endif
+          embedParams.failures[EmbedFailureCauses::BAD_DOUBLE_BOND_STEREO]++;
+        }
+      }
+    }
+  }
+  return gotCoords;
+}
 bool embedPoints(RDGeom::PointPtrVect *positions, detail::EmbedArgs eargs,
                  EmbedParameters &embedParams, int seed, TimePoint *end_time) {
   PRECONDITION(positions, "bogus positions");
@@ -888,137 +1020,13 @@ bool embedPoints(RDGeom::PointPtrVect *positions, detail::EmbedArgs eargs,
   unsigned int iter = 0;
   while (!gotCoords && iter < embedParams.maxIterations) {
     if (end_time != nullptr && Clock::now() > *end_time) {
-      break;
-    }
-
-    ++iter;
-    if (embedParams.callback != nullptr) {
-      embedParams.callback(iter);
+      return false;
     }
     if (ControlCHandler::getGotSignal()) {
       return false;
     }
-    gotCoords = EmbeddingOps::generateInitialCoords(positions, eargs,
-                                                    embedParams, distMat, rng);
-    if (!gotCoords) {
-      if (embedParams.trackFailures) {
-#ifdef RDK_BUILD_THREADSAFE_SSS
-        std::lock_guard<std::mutex> lock(GetFailMutex());
-#endif
-        embedParams.failures[EmbedFailureCauses::INITIAL_COORDS]++;
-      }
-    } else {
-      if (ControlCHandler::getGotSignal()) {
-        return false;
-      }
-      gotCoords =
-          EmbeddingOps::firstMinimization(positions, eargs, embedParams);
-      if (!gotCoords) {
-        if (embedParams.trackFailures) {
-#ifdef RDK_BUILD_THREADSAFE_SSS
-          std::lock_guard<std::mutex> lock(GetFailMutex());
-#endif
-          embedParams.failures[EmbedFailureCauses::FIRST_MINIMIZATION]++;
-        }
-      } else {
-        gotCoords = EmbeddingOps::checkTetrahedralCenters(positions, eargs,
-                                                          embedParams);
-        if (!gotCoords) {
-          if (embedParams.trackFailures) {
-#ifdef RDK_BUILD_THREADSAFE_SSS
-            std::lock_guard<std::mutex> lock(GetFailMutex());
-#endif
-            embedParams
-                .failures[EmbedFailureCauses::CHECK_TETRAHEDRAL_CENTERS]++;
-          }
-        }
-      }
-
-      // Check if any of our chiral centers are badly out of whack.
-      if (gotCoords && embedParams.enforceChirality &&
-          eargs.chiralCenters->size() > 0) {
-        gotCoords =
-            EmbeddingOps::checkChiralCenters(positions, eargs, embedParams);
-        if (!gotCoords) {
-          if (embedParams.trackFailures) {
-#ifdef RDK_BUILD_THREADSAFE_SSS
-            std::lock_guard<std::mutex> lock(GetFailMutex());
-#endif
-            embedParams.failures[EmbedFailureCauses::CHECK_CHIRAL_CENTERS]++;
-          }
-        }
-      }
-      // redo the minimization if we have a chiral center
-      // or have started from random coords.
-      if (gotCoords &&
-          (eargs.chiralCenters->size() > 0 || embedParams.useRandomCoords)) {
-        if (ControlCHandler::getGotSignal()) {
-          return false;
-        }
-        gotCoords = EmbeddingOps::minimizeFourthDimension(
-            positions, eargs, embedParams, end_time);
-        if (!gotCoords) {
-          if (embedParams.trackFailures) {
-#ifdef RDK_BUILD_THREADSAFE_SSS
-            std::lock_guard<std::mutex> lock(GetFailMutex());
-#endif
-            if (end_time != nullptr && Clock::now() > *end_time) {
-              embedParams.failures[EmbedFailureCauses::EXCEEDED_TIMEOUT]++;
-            }
-            embedParams
-                .failures[EmbedFailureCauses::MINIMIZE_FOURTH_DIMENSION]++;
-          }
-        }
-      }
-
-      // (ET)(K)DG
-      if (gotCoords && (embedParams.useExpTorsionAnglePrefs ||
-                        embedParams.useBasicKnowledge)) {
-        if (ControlCHandler::getGotSignal()) {
-          return false;
-        }
-        gotCoords = EmbeddingOps::minimizeWithExpTorsions(*positions, eargs,
-                                                          embedParams);
-        if (!gotCoords) {
-          if (embedParams.trackFailures) {
-#ifdef RDK_BUILD_THREADSAFE_SSS
-            std::lock_guard<std::mutex> lock(GetFailMutex());
-#endif
-            embedParams.failures[EmbedFailureCauses::ETK_MINIMIZATION]++;
-          }
-        }
-      }
-      if (gotCoords) {
-        gotCoords = EmbeddingOps::doubleBondGeometryChecks(*positions, eargs,
-                                                           embedParams);
-        if (!gotCoords && embedParams.trackFailures) {
-#ifdef RDK_BUILD_THREADSAFE_SSS
-          std::lock_guard<std::mutex> lock(GetFailMutex());
-#endif
-          embedParams.failures[EmbedFailureCauses::LINEAR_DOUBLE_BOND]++;
-        }
-      }
-      // test if stereo is correct
-      if (embedParams.enforceChirality && gotCoords) {
-        if (!eargs.chiralCenters->empty()) {
-          // test if chirality is correct. Any additional test failures
-          // will be tracked there if necessary.
-          gotCoords =
-              EmbeddingOps::finalChiralChecks(positions, eargs, embedParams);
-        }
-        if (gotCoords && !eargs.stereoDoubleBonds->empty()) {
-          gotCoords = EmbeddingOps::doubleBondStereoChecks(*positions, eargs,
-                                                           embedParams);
-          if (!gotCoords && embedParams.trackFailures) {
-#ifdef RDK_BUILD_THREADSAFE_SSS
-            std::lock_guard<std::mutex> lock(GetFailMutex());
-#endif
-            embedParams.failures[EmbedFailureCauses::BAD_DOUBLE_BOND_STEREO]++;
-          }
-        }
-      }
-    }
-
+    gotCoords = tryEmbedOnce(positions, eargs, embedParams, end_time, distMat,
+                             rng, gotCoords, iter);
   }  // while
 
   return gotCoords;
