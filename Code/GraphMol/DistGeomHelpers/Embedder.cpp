@@ -983,54 +983,7 @@ bool tryEmbedOnce(RDGeom::PointPtrVect *positions, detail::EmbedArgs eargs,
   }
   return gotCoords;
 }
-bool embedPoints(RDGeom::PointPtrVect *positions, detail::EmbedArgs eargs,
-                 EmbedParameters &embedParams, int seed, TimePoint *end_time) {
-  PRECONDITION(positions, "bogus positions");
-  if (embedParams.maxIterations == 0) {
-    embedParams.maxIterations = 10 * positions->size();
-  }
-  RDNumeric::DoubleSymmMatrix distMat(positions->size(), 0.0);
 
-  // The basin threshold just gets us into trouble when we're using
-  // random coordinates since it ends up ignoring 1-4 (and higher)
-  // interactions. This causes us to get folded-up (and self-penetrating)
-  // conformations for large flexible molecules
-  if (embedParams.useRandomCoords) {
-    embedParams.basinThresh = 1e8;
-  }
-
-  std::unique_ptr<RDKit::rng_type> generator;
-  std::unique_ptr<RDKit::uniform_double> distrib;
-  std::unique_ptr<RDKit::double_source_type> rngMgr;
-
-  RDKit::double_source_type *rng = nullptr;
-  CHECK_INVARIANT(seed >= -1,
-                  "random seed must either be positive, zero, or negative one");
-  if (seed > -1) {
-    generator.reset(new RDKit::rng_type(42u));
-    generator->seed(seed);
-    distrib.reset(new RDKit::uniform_double(0.0, 1.0));
-    rngMgr.reset(new RDKit::double_source_type(*generator, *distrib));
-    rng = rngMgr.get();
-  } else {
-    rng = &RDKit::getDoubleRandomSource();
-  }
-
-  bool gotCoords = false;
-  unsigned int iter = 0;
-  while (!gotCoords && iter < embedParams.maxIterations) {
-    if (end_time != nullptr && Clock::now() > *end_time) {
-      return false;
-    }
-    if (ControlCHandler::getGotSignal()) {
-      return false;
-    }
-    gotCoords = tryEmbedOnce(positions, eargs, embedParams, end_time, distMat,
-                             rng, gotCoords, iter);
-  }  // while
-
-  return gotCoords;
-}
 // export this since we are going to be testing it
 RDKIT_DISTGEOMHELPERS_EXPORT void findDoubleBonds(
     const ROMol &mol,
@@ -1387,9 +1340,9 @@ void embedHelper_(int threadId, int numThreads, EmbedArgs *eargs,
       return;
     }
 
-    if (rdcast<int>(ci % numThreads) != threadId) {
-      continue;
-    }
+    // if (rdcast<int>(ci % numThreads) != threadId) {
+    //   continue;
+    // }
     if (!(*eargs->confsOk)[ci]) {
       // we call this function for each fragment in a molecule,
       // if one of the fragments has already failed, there's no
@@ -1432,8 +1385,51 @@ void embedHelper_(int threadId, int numThreads, EmbedArgs *eargs,
     }
     CHECK_INVARIANT(new_seed >= -1,
                     "Something went wrong calculating a new seed");
-    bool gotCoords = EmbeddingOps::embedPoints(&positions, *eargs, *params,
-                                               new_seed, end_time);
+    if (params->maxIterations == 0) {
+      params->maxIterations = 10 * positions.size();
+    }
+    RDNumeric::DoubleSymmMatrix distMat(positions.size(), 0.0);
+
+    // The basin threshold just gets us into trouble when we're using
+    // random coordinates since it ends up ignoring 1-4 (and higher)
+    // interactions. This causes us to get folded-up (and self-penetrating)
+    // conformations for large flexible molecules
+    if (params->useRandomCoords) {
+      params->basinThresh = 1e8;
+    }
+
+    std::unique_ptr<RDKit::rng_type> generator;
+    std::unique_ptr<RDKit::uniform_double> distrib;
+    std::unique_ptr<RDKit::double_source_type> rngMgr;
+
+    RDKit::double_source_type *rng = nullptr;
+    CHECK_INVARIANT(new_seed >= -1,
+                    "random seed must either be positive, zero, or negative one");
+    if (new_seed > -1) {
+      generator.reset(new RDKit::rng_type(42u));
+      generator->seed(new_seed);
+      distrib.reset(new RDKit::uniform_double(0.0, 1.0));
+      rngMgr.reset(new RDKit::double_source_type(*generator, *distrib));
+      rng = rngMgr.get();
+    } else {
+      rng = &RDKit::getDoubleRandomSource();
+    }
+
+    unsigned int iter = 0;
+    bool gotCoords = false;
+    while (!gotCoords && iter < params->maxIterations) {
+      if (end_time != nullptr && Clock::now() > *end_time) {
+        gotCoords = false;
+        break;
+      }
+      if (ControlCHandler::getGotSignal()) {
+        gotCoords = false;
+        break;
+      }
+      gotCoords =
+          EmbeddingOps::tryEmbedOnce(&positions, *eargs, *params, end_time, distMat,
+                               rng, gotCoords, iter);
+    }  // while
 
     // copy the coordinates into the correct conformer
     if (gotCoords) {
@@ -1652,21 +1648,8 @@ void EmbedMultipleConfs(ROMol &mol, INT_VECT &res, unsigned int numConfs,
                                &chiralCenters,  &tetrahedralCarbons,
                                &doubleBondEnds, &stereoDoubleBonds,
                                &etkdgDetails};
-    if (numThreads == 1) {
-      detail::embedHelper_(0, 1, &eargs, &params, end_time);
-    }
-#ifdef RDK_BUILD_THREADSAFE_SSS
-    else {
-      std::vector<std::future<void>> tg;
-      for (int tid = 0; tid < numThreads; ++tid) {
-        tg.emplace_back(std::async(std::launch::async, detail::embedHelper_,
-                                   tid, numThreads, &eargs, &params, end_time));
-      }
-      for (auto &fut : tg) {
-        fut.get();
-      }
-    }
-#endif
+      detail::embedHelper_(0, numThreads, &eargs, &params, end_time);
+
     if (end_time != nullptr && Clock::now() > *end_time) {
       if (params.trackFailures) {
 #ifdef RDK_BUILD_THREADSAFE_SSS

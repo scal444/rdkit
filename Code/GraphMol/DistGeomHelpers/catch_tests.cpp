@@ -716,7 +716,7 @@ TEST_CASE("tracking failure causes") {
 
     auto cids2 = DGeomHelpers::EmbedMultipleConfs(*mol, 20, ps2);
     CHECK(cids2 == cids);
-
+ 
     CHECK(ps.failures == ps2.failures);
   }
 #endif
