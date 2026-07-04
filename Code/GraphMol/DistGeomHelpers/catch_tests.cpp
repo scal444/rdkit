@@ -669,7 +669,7 @@ TEST_CASE("tracking failure causes") {
     MolOps::addHs(*mol);
     DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
     ps.trackFailures = true;
-    ps.maxIterations = 20;
+    ps.maxIterations = 50;
     ps.randomSeed = 42;
     auto cid = DGeomHelpers::EmbedMolecule(*mol, ps);
     CHECK(cid < 0);
@@ -1106,10 +1106,10 @@ TEST_CASE("github #8001: RMS pruning misses conformers") {
   ps.randomSeed = 1;
   ps.pruneRmsThresh = 0.5;
   auto cids = DGeomHelpers::EmbedMultipleConfs(*mol, 200, ps);
-  CHECK(cids.size() == 87);
+  CHECK(cids.size() == 86);
   ps.pruneRmsThresh = 1.0;
   cids = DGeomHelpers::EmbedMultipleConfs(*mol, 200, ps);
-  CHECK(cids.size() == 4);
+  CHECK(cids.size() == 3);
 }
 
 TEST_CASE("Lower bound for H-bond atoms") {

@@ -856,8 +856,7 @@ bool tryEmbedOnce(RDGeom::PointPtrVect *positions, detail::EmbedArgs eargs,
                   EmbedParameters &embedParams, TimePoint *end_time,
                   RDNumeric::DoubleSymmMatrix distMat,
                   RDKit::double_source_type *rng, bool &gotCoords,
-                  unsigned int &iter) {
-  ++iter;
+                  unsigned int iter) {
   if (embedParams.callback != nullptr) {
     embedParams.callback(iter);
   }
@@ -1305,11 +1304,6 @@ bool _isConfFarFromRest(
 
 namespace detail {
 
-int incrementSeed(const int seed, const bool enableSequentialRandomSeeds) {
-
-}
-
-
 template <class T>
 bool multiplication_overflows_(T a, T b) {
   // a * b > c if and only if a > c / b
@@ -1319,7 +1313,8 @@ bool multiplication_overflows_(T a, T b) {
   return a > std::numeric_limits<T>::max() / b;
 }
 
-void embedHelper_(const int maxAttempts, std::atomic<int>& attempts, std::atomic<int>& nextWriteIndex, EmbedArgs *eargs,
+void embedHelper_(const int maxAttempts, std::atomic<int> &attempts,
+                  std::atomic<int> &nextWriteIndex, EmbedArgs *eargs,
                   EmbedParameters *params, TimePoint *end_time) {
   PRECONDITION(eargs, "bogus eargs");
   PRECONDITION(params, "bogus params");
@@ -1341,7 +1336,8 @@ void embedHelper_(const int maxAttempts, std::atomic<int>& attempts, std::atomic
   }
   int attemptId = -1;
   // Note the prefix attempts++ is important here to start from 0.
-  while ((attemptId = attempts++)  <  maxAttempts && nextWriteIndex.load() < static_cast<int>(eargs->confs->size())){
+  while ((attemptId = attempts++) < maxAttempts &&
+         nextWriteIndex.load() < static_cast<int>(eargs->confs->size())) {
     if (ControlCHandler::getGotSignal() ||
         (end_time != nullptr && Clock::now() > *end_time)) {
       return;
@@ -1367,7 +1363,8 @@ void embedHelper_(const int maxAttempts, std::atomic<int>& attempts, std::atomic
           // following will generate unique integers:
           // hash(a, b) = a + b * N
           auto big_seed = rdcast<size_t>(params->randomSeed);
-          size_t max_val = std::max(static_cast<size_t>(attemptId) + 1, big_seed);
+          size_t max_val =
+              std::max(static_cast<size_t>(attemptId) + 1, big_seed);
           size_t big_num = big_seed + max_val * (attemptId + 1);
           // only grab the first 31 bits xor'd with the next 31 bits to
           // make sure its positive, careful, the 'ULL' is important
@@ -1395,8 +1392,6 @@ void embedHelper_(const int maxAttempts, std::atomic<int>& attempts, std::atomic
     std::unique_ptr<RDKit::double_source_type> rngMgr;
 
     RDKit::double_source_type *rng = nullptr;
-    CHECK_INVARIANT(new_seed >= -1,
-                    "random seed must either be positive, zero, or negative one");
     if (new_seed > -1) {
       generator.reset(new RDKit::rng_type(42u));
       generator->seed(new_seed);
@@ -1407,29 +1402,26 @@ void embedHelper_(const int maxAttempts, std::atomic<int>& attempts, std::atomic
       rng = &RDKit::getDoubleRandomSource();
     }
 
-    unsigned int iter = 0;
-    bool gotCoords = false;
-    while (!gotCoords && iter < params->maxIterations) {
-      if (end_time != nullptr && Clock::now() > *end_time) {
-        gotCoords = false;
-        break;
-      }
-      if (ControlCHandler::getGotSignal()) {
-        gotCoords = false;
-        break;
-      }
-      gotCoords =
-          EmbeddingOps::tryEmbedOnce(&positions, *eargs, *params, end_time, distMat,
-                               rng, gotCoords, iter);
-    }  // while
+    if (end_time != nullptr && Clock::now() > *end_time) {
+      return;
+    }
+    if (ControlCHandler::getGotSignal()) {
+      return;
+    }
+    bool gotCoords =
+        EmbeddingOps::tryEmbedOnce(&positions, *eargs, *params, end_time,
+                                   distMat, rng, gotCoords, attemptId);
 
     // copy the coordinates into the correct conformer
     if (gotCoords) {
-      // We have to skip previously failed fragments. Loop until we find the next available write index.
+      // We have to skip previously failed fragments. Loop until we find the
+      // next available write index.
       int writeIdx = -1;
-      while ((writeIdx = nextWriteIndex++) < eargs->confs->size() && !eargs->confsOk->at(writeIdx)) {
+      while ((writeIdx = nextWriteIndex++) < eargs->confs->size() &&
+             !eargs->confsOk->at(writeIdx)) {
       }
-      // If multithreading, it's possible another thread has already written the last index.
+      // If multithreading, it's possible another thread has already written the
+      // last index.
       if (writeIdx >= eargs->confs->size()) {
         return;
       }
