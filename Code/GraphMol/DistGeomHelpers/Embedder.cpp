@@ -1662,21 +1662,21 @@ void EmbedMultipleConfs(ROMol &mol, INT_VECT &res, unsigned int numConfs,
     const int attemptBudget = params.maxIterations * numTargetConfs;
     std::atomic<int> attempts(0);
     std::atomic<int> nextWriteIdx(0);
-//    if (numThreads == 1) {
+    if (numThreads == 1) {
       detail::embedHelper_(attemptBudget, attempts, nextWriteIdx, &eargs, &params, end_time);
-//     }
-// #ifdef RDK_BUILD_THREADSAFE_SSS
-//     else {
-//       std::vector<std::future<void>> tg;
-//       for (int tid = 0; tid < numThreads; ++tid) {
-//         tg.emplace_back(std::async(std::launch::async, detail::embedHelper_,
-//                                    attemptBudget, std::ref(attempts), std::ref(nextWriteIdx), &eargs, &params, end_time));
-//       }
-//       for (auto &fut : tg) {
-//         fut.get();
-//       }
-//     }
-// #endif
+     }
+#ifdef RDK_BUILD_THREADSAFE_SSS
+    else {
+      std::vector<std::future<void>> tg;
+      for (int tid = 0; tid < numThreads; ++tid) {
+        tg.emplace_back(std::async(std::launch::async, detail::embedHelper_,
+                                   attemptBudget, std::ref(attempts), std::ref(nextWriteIdx), &eargs, &params, end_time));
+      }
+      for (auto &fut : tg) {
+        fut.get();
+      }
+    }
+#endif
 
     for (int i = nextWriteIdx.load(); i < eargs.confsOk->size(); i++) {
       eargs.confsOk->set(i, false);

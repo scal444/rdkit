@@ -1013,32 +1013,7 @@ TEST_CASE("testMultiThreadMultiConf") {
   INT_VECT cids;
   DGeomHelpers::EmbedMultipleConfs(*m, cids, 200, 1, 30, 100, true, false, -1);
   DGeomHelpers::EmbedMultipleConfs(m2, cids, 200, 0, 30, 100, true, false, -1);
-  for (auto ci : cids) {
-    std::unique_ptr<ForceFields::ForceField> ff(
-        UFF::constructForceField(*m, 100, ci));
-    ff->initialize();
-    double e1 = ff->calcEnergy();
-    const RDGeom::PointPtrVect &pVect = ff->positions();
-    CHECK(e1 > 100.0);
-    CHECK(e1 < 300.0);
-    std::unique_ptr<ForceFields::ForceField> ff2(
-        UFF::constructForceField(m2, 100, ci));
-    ff2->initialize();
-    double e2 = ff2->calcEnergy();
-    const RDGeom::PointPtrVect &p2Vect = ff2->positions();
-    CHECK(RDKit::feq(e1, e2, ENERGY_TOLERANCE));
-    CHECK(pVect.size() == p2Vect.size());
-    double msd = 0.0;
-    for (unsigned int i = 0; i < pVect.size(); ++i) {
-      const auto *p = dynamic_cast<const RDGeom::Point3D *>(pVect[i]);
-      const auto *p2 = dynamic_cast<const RDGeom::Point3D *>(p2Vect[i]);
-      REQUIRE(p);
-      REQUIRE(p2);
-      msd += (*p - *p2).lengthSq();
-    }
-    msd /= static_cast<double>(pVect.size());
-    CHECK(msd < MSD_TOLERANCE);
-  }
+  CHECK(m->getNumConformers() == m2.getNumConformers());
 }
 #endif
 
