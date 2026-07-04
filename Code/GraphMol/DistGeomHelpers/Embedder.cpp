@@ -1319,7 +1319,7 @@ bool multiplication_overflows_(T a, T b) {
   return a > std::numeric_limits<T>::max() / b;
 }
 
-void embedHelper_(int threadId, int numThreads, EmbedArgs *eargs,
+void embedHelper_(const int maxAttempts, std::atomic<int>& attempts, std::atomic<int>& nextWriteIndex, EmbedArgs *eargs,
                   EmbedParameters *params, TimePoint *end_time) {
   PRECONDITION(eargs, "bogus eargs");
   PRECONDITION(params, "bogus params");
@@ -1339,20 +1339,12 @@ void embedHelper_(int threadId, int numThreads, EmbedArgs *eargs,
     }
     positions[i] = positionsStore[i].get();
   }
-  for (size_t ci = 0; ci < eargs->confs->size(); ci++) {
+  int attemptId = -1;
+  // Note the prefix attempts++ is important here to start from 0.
+  while ((attemptId = attempts++)  <  maxAttempts && nextWriteIndex.load() < static_cast<int>(eargs->confs->size())){
     if (ControlCHandler::getGotSignal() ||
         (end_time != nullptr && Clock::now() > *end_time)) {
       return;
-    }
-
-    // if (rdcast<int>(ci % numThreads) != threadId) {
-    //   continue;
-    // }
-    if (!(*eargs->confsOk)[ci]) {
-      // we call this function for each fragment in a molecule,
-      // if one of the fragments has already failed, there's no
-      // sense in embedding this one
-      continue;
     }
 
     CHECK_INVARIANT(
@@ -1361,12 +1353,12 @@ void embedHelper_(int threadId, int numThreads, EmbedArgs *eargs,
     int new_seed = params->randomSeed;
     if (new_seed > -1) {
       if (params->enableSequentialRandomSeeds) {
-        new_seed += ci + 1;
+        new_seed += attemptId + 1;
       } else {
-        if (!multiplication_overflows_(rdcast<int>(ci + 1),
+        if (!multiplication_overflows_(rdcast<int>(attemptId + 1),
                                        params->randomSeed)) {
           // old method of computing a new seed
-          new_seed = (ci + 1) * params->randomSeed;
+          new_seed = (attemptId + 1) * params->randomSeed;
         } else {
           // If the above simple multiplication will overflow, use a
           // cheap and easy way to hash the conformer index and seed
@@ -1375,13 +1367,13 @@ void embedHelper_(int threadId, int numThreads, EmbedArgs *eargs,
           // following will generate unique integers:
           // hash(a, b) = a + b * N
           auto big_seed = rdcast<size_t>(params->randomSeed);
-          size_t max_val = std::max(ci + 1, big_seed);
-          size_t big_num = big_seed + max_val * (ci + 1);
+          size_t max_val = std::max(static_cast<size_t>(attemptId) + 1, big_seed);
+          size_t big_num = big_seed + max_val * (attemptId + 1);
           // only grab the first 31 bits xor'd with the next 31 bits to
           // make sure its positive, careful, the 'ULL' is important
           // here, 0x7fffffff is the 'int' type because of C default
           // number semantics and that we definitely don't want!
-          const size_t positive_int_mask = 0x7fffffffULL;
+          constexpr size_t positive_int_mask = 0x7fffffffULL;
           size_t folded_num =
               (big_num & positive_int_mask) ^ (big_num >> 31ULL);
           new_seed = rdcast<int>(folded_num & positive_int_mask);
@@ -1433,7 +1425,16 @@ void embedHelper_(int threadId, int numThreads, EmbedArgs *eargs,
 
     // copy the coordinates into the correct conformer
     if (gotCoords) {
-      auto &conf = (*eargs->confs)[ci];
+      // We have to skip previously failed fragments. Loop until we find the next available write index.
+      int writeIdx = -1;
+      while ((writeIdx = nextWriteIndex++) < eargs->confs->size() && !eargs->confsOk->at(writeIdx)) {
+      }
+      // If multithreading, it's possible another thread has already written the last index.
+      if (writeIdx >= eargs->confs->size()) {
+        return;
+      }
+
+      auto &conf = (*eargs->confs)[writeIdx];
       unsigned int fragAtomIdx = 0;
       for (unsigned int i = 0; i < conf->getNumAtoms(); ++i) {
         if (!eargs->fragMapping ||
@@ -1444,8 +1445,6 @@ void embedHelper_(int threadId, int numThreads, EmbedArgs *eargs,
           ++fragAtomIdx;
         }
       }
-    } else {
-      (*eargs->confsOk)[ci] = 0;
     }
   }
 }
@@ -1663,21 +1662,25 @@ void EmbedMultipleConfs(ROMol &mol, INT_VECT &res, unsigned int numConfs,
     const int attemptBudget = params.maxIterations * numTargetConfs;
     std::atomic<int> attempts(0);
     std::atomic<int> nextWriteIdx(0);
-    // if (numThreads == 1) {
-      detail::embedHelper_(0, 1, &eargs, &params, end_time);
-    // }
+//    if (numThreads == 1) {
+      detail::embedHelper_(attemptBudget, attempts, nextWriteIdx, &eargs, &params, end_time);
+//     }
 // #ifdef RDK_BUILD_THREADSAFE_SSS
 //     else {
 //       std::vector<std::future<void>> tg;
 //       for (int tid = 0; tid < numThreads; ++tid) {
 //         tg.emplace_back(std::async(std::launch::async, detail::embedHelper_,
-//                                    tid, numThreads, &eargs, &paramCopy, end_time));
+//                                    attemptBudget, std::ref(attempts), std::ref(nextWriteIdx), &eargs, &params, end_time));
 //       }
 //       for (auto &fut : tg) {
 //         fut.get();
 //       }
 //     }
 // #endif
+
+    for (int i = nextWriteIdx.load(); i < eargs.confsOk->size(); i++) {
+      eargs.confsOk->set(i, false);
+    }
 
     if (end_time != nullptr && Clock::now() > *end_time) {
       if (params.trackFailures) {

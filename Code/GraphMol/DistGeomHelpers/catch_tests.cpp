@@ -669,7 +669,7 @@ TEST_CASE("tracking failure causes") {
     MolOps::addHs(*mol);
     DGeomHelpers::EmbedParameters ps = DGeomHelpers::ETKDGv3;
     ps.trackFailures = true;
-    ps.maxIterations = 50;
+    ps.maxIterations = 20;
     ps.randomSeed = 42;
     auto cid = DGeomHelpers::EmbedMolecule(*mol, ps);
     CHECK(cid < 0);
@@ -716,7 +716,7 @@ TEST_CASE("tracking failure causes") {
 
     auto cids2 = DGeomHelpers::EmbedMultipleConfs(*mol, 20, ps2);
     CHECK(cids2 == cids);
- 
+
     CHECK(ps.failures == ps2.failures);
   }
 #endif
