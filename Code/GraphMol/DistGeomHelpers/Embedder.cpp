@@ -1305,6 +1305,11 @@ bool _isConfFarFromRest(
 
 namespace detail {
 
+int incrementSeed(const int seed, const bool enableSequentialRandomSeeds) {
+
+}
+
+
 template <class T>
 bool multiplication_overflows_(T a, T b) {
   // a * b > c if and only if a > c / b
@@ -1385,18 +1390,13 @@ void embedHelper_(int threadId, int numThreads, EmbedArgs *eargs,
     }
     CHECK_INVARIANT(new_seed >= -1,
                     "Something went wrong calculating a new seed");
-    if (params->maxIterations == 0) {
-      params->maxIterations = 10 * positions.size();
-    }
+
     RDNumeric::DoubleSymmMatrix distMat(positions.size(), 0.0);
 
     // The basin threshold just gets us into trouble when we're using
     // random coordinates since it ends up ignoring 1-4 (and higher)
     // interactions. This causes us to get folded-up (and self-penetrating)
     // conformations for large flexible molecules
-    if (params->useRandomCoords) {
-      params->basinThresh = 1e8;
-    }
 
     std::unique_ptr<RDKit::rng_type> generator;
     std::unique_ptr<RDKit::uniform_double> distrib;
@@ -1580,6 +1580,9 @@ void EmbedMultipleConfs(ROMol &mol, INT_VECT &res, unsigned int numConfs,
     coordMap = nullptr;  // FIXME not directly related to ETKDG, but here I
                          // think it should be params.boundsMat = nullptr
   }
+  if (params.useRandomCoords) {
+    params.basinThresh = 1e8;
+  }
 
   // we will generate conformations for each fragment in the molecule
   // separately, so loop over them:
@@ -1641,6 +1644,11 @@ void EmbedMultipleConfs(ROMol &mol, INT_VECT &res, unsigned int numConfs,
 
     ControlCHandler::reset();
 
+    if (params.maxIterations == 0) {
+      params.maxIterations = 10 * nAtoms * (fourD? 4 : 3);
+    }
+
+
     // do the embedding, using multiple threads if requested
     detail::EmbedArgs eargs = {&confsOk,        fourD,
                                &fragMapping,    &confs,
@@ -1648,7 +1656,28 @@ void EmbedMultipleConfs(ROMol &mol, INT_VECT &res, unsigned int numConfs,
                                &chiralCenters,  &tetrahedralCarbons,
                                &doubleBondEnds, &stereoDoubleBonds,
                                &etkdgDetails};
-      detail::embedHelper_(0, numThreads, &eargs, &params, end_time);
+    // Fragments that have failed so far, we won't try to generate.
+    // If all succeed, or only one fragment, this is the conformer number.
+    int numTargetConfs = eargs.confsOk->count();
+
+    const int attemptBudget = params.maxIterations * numTargetConfs;
+    std::atomic<int> attempts(0);
+    std::atomic<int> nextWriteIdx(0);
+    // if (numThreads == 1) {
+      detail::embedHelper_(0, 1, &eargs, &params, end_time);
+    // }
+// #ifdef RDK_BUILD_THREADSAFE_SSS
+//     else {
+//       std::vector<std::future<void>> tg;
+//       for (int tid = 0; tid < numThreads; ++tid) {
+//         tg.emplace_back(std::async(std::launch::async, detail::embedHelper_,
+//                                    tid, numThreads, &eargs, &paramCopy, end_time));
+//       }
+//       for (auto &fut : tg) {
+//         fut.get();
+//       }
+//     }
+// #endif
 
     if (end_time != nullptr && Clock::now() > *end_time) {
       if (params.trackFailures) {
