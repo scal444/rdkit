@@ -260,8 +260,7 @@ namespace {
 unsigned int getChiralRank(const ROMol *dp_mol, canon_atom *dp_atoms,
                            unsigned int i) {
   unsigned int res = 0;
-  std::vector<unsigned int> perm;
-  perm.reserve(dp_atoms[i].atom->getDegree());
+  boost::container::small_vector<unsigned int, 4> perm;
   for (const auto nbr : dp_mol->atomNeighbors(dp_atoms[i].atom)) {
     auto rnk = dp_atoms[nbr->getIdx()].index;
     // make sure we don't have duplicate ranks
@@ -436,16 +435,20 @@ class RDKIT_GRAPHMOL_EXPORT AtomCompareFunctor {
           }
           if (ivi != ivj) {
             // now check the current classes of the other members of the SG
-            std::set<unsigned int> sgi;
+            boost::container::small_vector<unsigned int, 4> sgi;
             for (const auto sgat :
                  dp_mol->getStereoGroups()[ivi - 1].getAtoms()) {
-              sgi.insert(dp_atoms[sgat->getIdx()].index);
+              sgi.push_back(dp_atoms[sgat->getIdx()].index);
             }
-            std::set<unsigned int> sgj;
+            std::sort(sgi.begin(), sgi.end());
+            sgi.erase(std::unique(sgi.begin(), sgi.end()), sgi.end());
+            boost::container::small_vector<unsigned int, 4> sgj;
             for (const auto sgat :
                  dp_mol->getStereoGroups()[ivj - 1].getAtoms()) {
-              sgj.insert(dp_atoms[sgat->getIdx()].index);
+              sgj.push_back(dp_atoms[sgat->getIdx()].index);
             }
+            std::sort(sgj.begin(), sgj.end());
+            sgj.erase(std::unique(sgj.begin(), sgj.end()), sgj.end());
             if (sgi < sgj) {
               return -1;
             } else if (sgi > sgj) {
