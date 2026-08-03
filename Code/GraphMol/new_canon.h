@@ -24,6 +24,7 @@
 #include <cstring>
 #include <cassert>
 #include <cstring>
+#include <span>
 #include <vector>
 
 // #define VERBOSE_CANON 1
@@ -698,10 +699,10 @@ class RDKIT_GRAPHMOL_EXPORT ChiralAtomCompareFunctor {
 template <typename CompareFunc>
 void RefinePartitions(const ROMol &mol, canon_atom *atoms, CompareFunc compar,
                       int mode, std::vector<int> &order,
-                      std::vector<int> &count, int &activeset,
-                      std::vector<int> &next, std::vector<int> &changed,
+                      std::span<int> count, int &activeset,
+                      std::span<int> next, std::span<int> changed,
                       std::vector<char> &touchedPartitions,
-                      std::vector<int> &hanoiTemp) {
+                      std::span<int> hanoiTemp) {
   unsigned int nAtoms = mol.getNumAtoms();
   int partition;
   int symclass = 0;
@@ -800,11 +801,11 @@ void RefinePartitions(const ROMol &mol, canon_atom *atoms, CompareFunc compar,
 
 template <typename CompareFunc>
 void BreakTies(const ROMol &mol, canon_atom *atoms, CompareFunc compar,
-               int mode, std::vector<int> &order, std::vector<int> &count,
-               int &activeset, std::vector<int> &next,
-               std::vector<int> &changed,
+               int mode, std::vector<int> &order, std::span<int> count,
+               int &activeset, std::span<int> next,
+               std::span<int> changed,
                std::vector<char> &touchedPartitions,
-               std::vector<int> &hanoiTemp) {
+               std::span<int> hanoiTemp) {
   unsigned int nAtoms = mol.getNumAtoms();
   int partition;
   int offset;
@@ -855,12 +856,12 @@ void BreakTies(const ROMol &mol, canon_atom *atoms, CompareFunc compar,
 
 RDKIT_GRAPHMOL_EXPORT void CreateSinglePartition(unsigned int nAtoms,
                                                  std::vector<int> &order,
-                                                 std::vector<int> &count,
+                                                 std::span<int> count,
                                                  canon_atom *atoms);
 
 RDKIT_GRAPHMOL_EXPORT void ActivatePartitions(
-    unsigned int nAtoms, std::vector<int> &order, std::vector<int> &count,
-    int &activeset, std::vector<int> &next, std::vector<int> &changed);
+    unsigned int nAtoms, std::vector<int> &order, std::span<int> count,
+    int &activeset, std::span<int> next, std::span<int> changed);
 
 //! Note that atom maps on dummy atoms will always be used
 RDKIT_GRAPHMOL_EXPORT void rankMolAtoms(

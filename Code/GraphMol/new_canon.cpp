@@ -94,7 +94,7 @@ int bondholder::compareStereo(const bondholder &o) const {
 }
 
 void CreateSinglePartition(unsigned int nAtoms, std::vector<int> &order,
-                           std::vector<int> &count, canon_atom *atoms) {
+                           std::span<int> count, canon_atom *atoms) {
   PRECONDITION(!order.empty(), "order should not be empty");
   PRECONDITION(!count.empty(), "count should not be empty");
   PRECONDITION(atoms, "bad pointer");
@@ -108,8 +108,8 @@ void CreateSinglePartition(unsigned int nAtoms, std::vector<int> &order,
 }
 
 void ActivatePartitions(unsigned int nAtoms, std::vector<int> &order,
-                        std::vector<int> &count, int &activeset,
-                        std::vector<int> &next, std::vector<int> &changed) {
+                        std::span<int> count, int &activeset,
+                        std::span<int> next, std::span<int> changed) {
   PRECONDITION(!order.empty(), "order should not be empty");
   PRECONDITION(!count.empty(), "count should not be empty");
   PRECONDITION(!next.empty(), "next should not be empty");
@@ -282,11 +282,13 @@ void rankWithFunctor(T &ftor, bool breakTies, std::vector<int> &order,
   canon_atom *atoms = ftor.dp_atoms;
   const unsigned int nAts = mol.getNumAtoms();
 
-  std::vector<int> count(nAts);
-  std::vector<int> next(nAts);
-  std::vector<int> changed(nAts, 1);
+  std::vector<int> scratch(4 * nAts);
+  std::span<int> count(scratch.data(), nAts);
+  std::span<int> next(scratch.data() + nAts, nAts);
+  std::span<int> changed(scratch.data() + 2 * nAts, nAts);
+  std::fill(changed.begin(), changed.end(), 1);
   std::vector<char> touched(nAts, 0);
-  std::vector<int> hanoiTemp(nAts);
+  std::span<int> hanoiTemp(scratch.data() + 3 * nAts, nAts);
   int activeset;
   CreateSinglePartition(nAts, order, count, atoms);
 // ActivatePartitions(nAts,order,count,activeset,next,changed);
