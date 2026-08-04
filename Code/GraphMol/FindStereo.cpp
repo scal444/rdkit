@@ -11,6 +11,7 @@
 #include <GraphMol/new_canon.h>
 #include <RDGeneral/types.h>
 #include <algorithm>
+#include <charconv>
 #include <RDGeneral/utils.h>
 #include <RDGeneral/Invariant.h>
 #include <RDGeneral/RDLog.h>
@@ -440,8 +441,16 @@ std::string getBondSymbol(const Bond *bond) {
 namespace {
 inline std::string getAtomCompareSymbol(const Atom &atom) {
   // we originally tried this with boost::format, but it was WAY slower
-  return std::to_string(atom.getIsotope()) + atom.getSymbol() +
-         std::to_string(atom.getFormalCharge());
+  char buffer[32];
+  std::string result;
+  auto conversion =
+      std::to_chars(std::begin(buffer), std::end(buffer), atom.getIsotope());
+  result.append(buffer, conversion.ptr);
+  result += atom.getSymbol();
+  conversion = std::to_chars(std::begin(buffer), std::end(buffer),
+                             atom.getFormalCharge());
+  result.append(buffer, conversion.ptr);
+  return result;
 }
 
 bool areStereobondControllingAtomsDupes(
