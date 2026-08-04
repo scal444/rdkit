@@ -16,6 +16,9 @@ target_link_libraries(bench rdkitCatch
   SmilesParse
 )
 
+add_executable(smiles_pipeline_bench EXCLUDE_FROM_ALL smiles_pipeline_bench.cpp)
+target_link_libraries(smiles_pipeline_bench SmilesParse)
+
 if(RDK_BUILD_INCHI_SUPPORT)
   target_link_libraries(bench RDInchiLib)
   target_sources(bench PRIVATE inchi.cpp)
