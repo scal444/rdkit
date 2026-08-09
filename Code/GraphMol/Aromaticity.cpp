@@ -345,7 +345,6 @@ void applyHuckelToFused(
   INT_VECT curRs;
   curRs.push_back(fused.front());
   int pos = -1;
-  unsigned int i;
   unsigned int curSize = 0;
   INT_VECT comb;
 
@@ -360,6 +359,9 @@ void applyHuckelToFused(
     nRingBonds = rdcast<unsigned int>(fusedBonds.count());
   }
   std::set<unsigned int> doneBonds;
+  INT_VECT atsInRingSystem(mol.getNumAtoms(), 0);
+  INT_VECT touchedAtoms;
+  INT_VECT unon;
   while (1) {
     if (pos == -1) {
       // If a ring system has more than 300 rings and a ring combination search
@@ -405,21 +407,26 @@ void applyHuckelToFused(
     }
 
     // check aromaticity on the current fused system
-    INT_VECT atsInRingSystem(mol.getNumAtoms(), 0);
+    touchedAtoms.clear();
     for (auto ridx : curRs) {
       for (auto rid : srings[ridx]) {
+        if (!atsInRingSystem[rid]) {
+          touchedAtoms.push_back(rid);
+        }
         ++atsInRingSystem[rid];
       }
     }
-    INT_VECT unon;
-    for (i = 0; i < atsInRingSystem.size(); ++i) {
+    unon.clear();
+    for (const auto atomIdx : touchedAtoms) {
       // condition for inclusion of an atom in the aromaticity of a fused ring
       // system is that it's present in one or two of the rings. this was #2895:
       // the central atom in acepentalene was being included in the count of
       // aromatic atoms
-      if (atsInRingSystem[i] == 1 || atsInRingSystem[i] == 2) {
-        unon.push_back(i);
+      if (atsInRingSystem[atomIdx] == 1 ||
+          atsInRingSystem[atomIdx] == 2) {
+        unon.push_back(atomIdx);
       }
+      atsInRingSystem[atomIdx] = 0;
     }
     if (applyHuckel(mol, unon, edon, minRingSize)) {
       // mark the atoms and bonds in these rings to be aromatic
