@@ -328,7 +328,10 @@ AtomElectrons::AtomElectrons(ConjElectrons *parent, const AtomElectrons &ae)
 void AtomElectrons::initTvNbFcFromAtom() {
   d_tv = d_atom->getTotalValence();
   d_fc = d_atom->getFormalCharge();
-  d_nb = oe() - d_tv - d_fc;
+  const auto nb = static_cast<int>(oe()) - static_cast<int>(d_tv) - d_fc;
+  CHECK_INVARIANT(nb >= 0 && nb <= std::numeric_limits<std::uint8_t>::max(),
+                  "invalid non-bonded electron count");
+  d_nb = static_cast<std::uint8_t>(nb);
 }
 
 std::uint8_t AtomElectrons::findAllowedBonds(unsigned int bi) {
