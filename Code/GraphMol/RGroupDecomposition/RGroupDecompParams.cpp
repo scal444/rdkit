@@ -284,7 +284,7 @@ bool RGroupDecompositionParameters::prepareCore(RWMol &core,
       atomToLabel[atom->getIdx()] = rlabel;
     }
   }
-  indexOffset -= core.getNumAtoms();
+  indexOffset -= static_cast<int>(core.getNumAtoms());
 
   MolOps::AdjustQueryParameters adjustParams;
   adjustParams.makeDummiesQueries = true;
