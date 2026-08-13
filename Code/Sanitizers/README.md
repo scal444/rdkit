@@ -33,3 +33,11 @@ Override `ASAN_OPTIONS`,
 LeakSanitizer is initially disabled because it cannot run under ptrace-based
 sandboxes; enable it outside such a sandbox with
 `ASAN_OPTIONS=detect_leaks=1:halt_on_error=1`.
+
+The runner also loads `asan.supp`, `tsan.supp`, or `ubsan.supp`. These files are
+reserved for confirmed defects in external libraries that RDKit does not
+bundle. They intentionally contain no active entries: a report should not be
+suppressed merely because an external header or runtime function appears in
+its stack when the invalid state is owned by RDKit. Set an explicit
+`suppressions=` entry in the corresponding sanitizer options to use a different
+file.
