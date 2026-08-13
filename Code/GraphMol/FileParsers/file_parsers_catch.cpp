@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <limits>
 #include <string>
 #include <sstream>
 #include <streambuf>
@@ -6158,7 +6159,8 @@ TEST_CASE("MaeMolSupplier and operator[]", "[mae][MaeMolSupplier][reader]") {
   }
 
   CHECK_THROWS_AS(supplier[mols_in_file], FileParseException);
-  CHECK_THROWS_AS(supplier[-1], FileParseException);
+  CHECK_THROWS_AS(supplier[std::numeric_limits<unsigned int>::max()],
+                  FileParseException);
 }
 
 TEST_CASE("MaeMolSupplier is3D flag", "[mae][MaeMolSupplier][reader]") {
