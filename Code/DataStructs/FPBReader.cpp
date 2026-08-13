@@ -14,6 +14,7 @@
 
 #include <DataStructs/ExplicitBitVect.h>
 #include <cstdint>
+#include <cstring>
 #include <DataStructs/BitOps.h>
 
 #include <RDGeneral/Invariant.h>
@@ -207,14 +208,18 @@ RDKIT_DATASTRUCTS_EXPORT boost::dynamic_bitset<> *bytesToBitset(
     const std::uint8_t *fpData, std::uint32_t nBits) {
   unsigned int nBytes = nBits / 8;
   if (!(nBytes % sizeof(boost::dynamic_bitset<>::block_type))) {
-    // I believe this could be faster (needs to be verified of course)
     unsigned int nBlocks = nBytes / sizeof(boost::dynamic_bitset<>::block_type);
-    const auto *fpBlocks =
-        reinterpret_cast<const boost::dynamic_bitset<>::block_type *>(fpData);
-    return new boost::dynamic_bitset<>(fpBlocks, fpBlocks + nBlocks);
+    std::vector<boost::dynamic_bitset<>::block_type> fpBlocks(nBlocks);
+    std::memcpy(fpBlocks.data(), fpData, nBytes);
+    return new boost::dynamic_bitset<>(fpBlocks.begin(), fpBlocks.end());
   } else {
-    return reinterpret_cast<boost::dynamic_bitset<> *>(
-        new boost::dynamic_bitset<std::uint8_t>(fpData, fpData + nBytes));
+    auto *result = new boost::dynamic_bitset<>(nBits);
+    for (std::uint32_t bit = 0; bit < nBits; ++bit) {
+      if (fpData[bit / 8] & (1u << (bit % 8))) {
+        result->set(bit);
+      }
+    }
+    return result;
   }
 }
 
