@@ -61,24 +61,24 @@ std::string DrawColourToSVG(const DrawColour &col) {
   bool hasAlpha = 1.0 - col.a > 1e-3;
   std::string res(hasAlpha ? 9 : 7, ' ');
   res[0] = '#';
-  unsigned int v;
+  int v;
   unsigned int i = 1;
   v = int(255 * col.r);
-  if (v > 255) {
+  if (v < 0 || v > 255) {
     throw ValueErrorException(
         "elements of the color should be between 0 and 1");
   }
   res[i++] = convert[v / 16];
   res[i++] = convert[v % 16];
   v = int(255 * col.g);
-  if (v > 255) {
+  if (v < 0 || v > 255) {
     throw ValueErrorException(
         "elements of the color should be between 0 and 1");
   }
   res[i++] = convert[v / 16];
   res[i++] = convert[v % 16];
   v = int(255 * col.b);
-  if (v > 255) {
+  if (v < 0 || v > 255) {
     throw ValueErrorException(
         "elements of the color should be between 0 and 1");
   }
@@ -86,7 +86,7 @@ std::string DrawColourToSVG(const DrawColour &col) {
   res[i++] = convert[v % 16];
   if (hasAlpha) {
     v = int(255 * col.a);
-    if (v > 255) {
+    if (v < 0 || v > 255) {
       throw ValueErrorException(
           "elements of the color should be between 0 and 1");
     }
