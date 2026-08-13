@@ -325,7 +325,7 @@ UniformGrid3D &UniformGrid3D::operator-=(const UniformGrid3D &other) {
 std::string UniformGrid3D::toString() const {
   std::stringstream ss(std::ios_base::binary | std::ios_base::out |
                        std::ios_base::in);
-  std::int32_t tVers = ci_GRIDPICKLE_VERSION * -1;
+  std::int32_t tVers = -static_cast<std::int32_t>(ci_GRIDPICKLE_VERSION);
   streamWrite(ss, tVers);
   std::uint32_t tInt;
   tInt = d_numX;
