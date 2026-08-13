@@ -28,6 +28,9 @@ Code/Sanitizers/run.sh asan test -R GraphMol -j 1
 
 The runner enables symbolization, stops on the first report, and uses a small
 launcher to preload the matching shared sanitizer runtime before Python starts.
+ASan also enables the loose cross-translation-unit initialization-order check;
+its stricter mode is deferred because shared-library initialization ordering can
+produce false positives there.
 Override `ASAN_OPTIONS`,
 `TSAN_OPTIONS`, or `UBSAN_OPTIONS` in the shell when layering in more checks.
 LeakSanitizer is initially disabled because it cannot run under ptrace-based
