@@ -1,0 +1,33 @@
+name: rdkit-sanitizers
+channels:
+  - conda-forge
+dependencies:
+  # Keep Clang, its C++ driver, and sanitizer runtimes on the same LLVM release.
+  - clang=22.1.8
+  - clangxx=22.1.8
+  - compiler-rt=22.1.8
+  - lld=22.1.8
+  - llvm-tools=22.1.8
+
+  # Build and test tools.
+  - ccache
+  - cmake
+  - ninja
+  - pkg-config
+  - pytest
+
+  # RDKit's normal C++ and Python build dependencies.
+  - python=3.13
+  - libboost-devel
+  - libboost-python-devel
+  - numpy
+  - eigen
+  - cairo
+  - expat
+  - freetype
+  - pillow
+  - pandas
+  - matplotlib
+  - catch2
+  - bzip2
+  - zlib

@@ -1,0 +1,89 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 23,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "sanitizer-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_C_COMPILER": "$env{CONDA_PREFIX}/bin/clang",
+        "CMAKE_CXX_COMPILER": "$env{CONDA_PREFIX}/bin/clang++",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/${presetName}/install",
+        "RDK_BUILD_CPP_TESTS": "ON",
+        "RDK_BUILD_PYTHON_WRAPPERS": "ON",
+        "RDK_BUILD_RPATH_SUPPORT": "ON",
+        "RDK_INSTALL_INTREE": "ON",
+        "RDK_INSTALL_STATIC_LIBS": "OFF"
+      }
+    },
+    {
+      "name": "asan",
+      "displayName": "Clang AddressSanitizer",
+      "inherits": "sanitizer-base",
+      "cacheVariables": {
+        "Python_EXECUTABLE": "${sourceDir}/Code/Sanitizers/python-asan.sh",
+        "CMAKE_C_FLAGS": "-fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer -fno-optimize-sibling-calls",
+        "CMAKE_CXX_FLAGS": "-fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer -fno-optimize-sibling-calls",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address -shared-libsan",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=address -shared-libsan"
+      }
+    },
+    {
+      "name": "tsan",
+      "displayName": "Clang ThreadSanitizer",
+      "inherits": "sanitizer-base",
+      "cacheVariables": {
+        "Python_EXECUTABLE": "${sourceDir}/Code/Sanitizers/python-tsan.sh",
+        "CMAKE_C_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer -fno-optimize-sibling-calls",
+        "CMAKE_CXX_FLAGS": "-fsanitize=thread -fno-omit-frame-pointer -fno-optimize-sibling-calls",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=thread -shared-libsan",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=thread -shared-libsan"
+      }
+    },
+    {
+      "name": "ubsan",
+      "displayName": "Clang UndefinedBehaviorSanitizer",
+      "inherits": "sanitizer-base",
+      "cacheVariables": {
+        "Python_EXECUTABLE": "${sourceDir}/Code/Sanitizers/python-ubsan.sh",
+        "CMAKE_C_FLAGS": "-fsanitize=undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -fno-optimize-sibling-calls",
+        "CMAKE_CXX_FLAGS": "-fsanitize=undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -fno-optimize-sibling-calls",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=undefined -fno-sanitize-recover=all -shared-libsan",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=undefined -fno-sanitize-recover=all -shared-libsan"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "asan", "configurePreset": "asan", "jobs": 8 },
+    { "name": "tsan", "configurePreset": "tsan", "jobs": 8 },
+    { "name": "ubsan", "configurePreset": "ubsan", "jobs": 8 }
+  ],
+  "testPresets": [
+    {
+      "name": "asan",
+      "configurePreset": "asan",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 8 }
+    },
+    {
+      "name": "tsan",
+      "configurePreset": "tsan",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 8 }
+    },
+    {
+      "name": "ubsan",
+      "configurePreset": "ubsan",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 8 }
+    }
+  ]
+}
