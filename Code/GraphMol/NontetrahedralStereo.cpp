@@ -529,12 +529,14 @@ unsigned int getChiralPermutation(const Atom *cen, const INT_LIST &probe,
   std::vector<unsigned int> probePerm(probe.size());
   nbrIdx = 0;
   for (auto v : probe) {
-    probePerm[nbrIdx++] = v < 0 ? -1 : order[v];
+    probePerm[nbrIdx++] =
+        v < 0 ? std::numeric_limits<unsigned int>::max() : order[v];
   }
 
   // Missing (implicit) neighbors are at the end when in storage order
   if (nbrPerm.size() < nbrIdx) {
-    nbrPerm.insert(nbrPerm.end(), nbrIdx - nbrPerm.size(), -1);
+    nbrPerm.insert(nbrPerm.end(), nbrIdx - nbrPerm.size(),
+                   std::numeric_limits<unsigned int>::max());
   }
 
   CHECK_INVARIANT(nbrPerm.size() == probePerm.size(),
