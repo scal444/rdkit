@@ -17,6 +17,7 @@
         "CMAKE_CXX_COMPILER": "$env{CONDA_PREFIX}/bin/clang++",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/${presetName}/install",
+        "CMAKE_PREFIX_PATH": "$env{CONDA_PREFIX}",
         "RDK_BUILD_CPP_TESTS": "ON",
         "RDK_BUILD_PYTHON_WRAPPERS": "ON",
         "RDK_BUILD_RPATH_SUPPORT": "ON",

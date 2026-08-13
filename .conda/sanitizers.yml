@@ -24,7 +24,8 @@ dependencies:
   - eigen
   - cairo
   - expat
-  - freetype
+  # MolDraw's reference geometry and SVG hashes are FreeType-version-sensitive.
+  - freetype=2.13.3
   - pillow
   - pandas
   - matplotlib
