@@ -4105,6 +4105,9 @@ bool isLinearAtom(const Atom &atom, const std::vector<Point2D> &atCds) {
       }
       ++i;
     }
+    if (i != 2) {
+      return false;
+    }
     return (bts[0] == bts[1] && bond_vecs[0].dotProduct(bond_vecs[1]) < -0.95);
   }
   return false;
