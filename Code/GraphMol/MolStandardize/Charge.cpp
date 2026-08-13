@@ -310,7 +310,9 @@ Uncharger::Uncharger()
 
 namespace {
 void removeCharge(Atom *atom, int charge, int hDelta) {
-  atom->setNumExplicitHs(atom->getTotalNumHs() + hDelta);
+  const auto numHs = static_cast<int>(atom->getTotalNumHs()) + hDelta;
+  PRECONDITION(numHs >= 0, "negative hydrogen count");
+  atom->setNumExplicitHs(static_cast<unsigned int>(numHs));
   atom->setNoImplicit(true);
   atom->setFormalCharge(atom->getFormalCharge() - charge);
   BOOST_LOG(rdInfoLog) << "Removed " << ((charge > 0) ? "positive" : "negative")
