@@ -331,15 +331,15 @@ void a2b(const char *a4, char *b3) {
     *********************************************/
     switch (i) {
       case 0:
-        ub3[0] = (byte << 2); /*** 6 bits into 1st byte ***/
+        ub3[0] = static_cast<unsigned char>(byte << 2);
         break;
       case 1:
-        ub3[0] |= ((b = byte) >> 4); /*** 2 bits into 1st byte ***/
-        ub3[1] = ((b = byte) << 4);  /*** 4 bits into 2nd byte ***/
+        ub3[0] = static_cast<unsigned char>(ub3[0] | ((b = byte) >> 4));
+        ub3[1] = static_cast<unsigned char>((b = byte) << 4);
         break;
       case 2:
-        ub3[1] |= ((b = byte) >> 2); /*** 4 bits into 2nd byte ***/
-        ub3[2] = ((b = byte) << 6);  /*** 2 bits into 3rd byte ***/
+        ub3[1] = static_cast<unsigned char>(ub3[1] | ((b = byte) >> 2));
+        ub3[2] = static_cast<unsigned char>((b = byte) << 6);
         break;
       case 3:
         ub3[2] |= byte; /*** 6 bits into 3rd byte ***/
