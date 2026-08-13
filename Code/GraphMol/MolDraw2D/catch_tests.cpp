@@ -431,6 +431,14 @@ std::hash_result_t hash_file(const std::string &filename) {
   return gboost::hash_range(file_contents.begin(), file_contents.end());
 }
 
+TEST_CASE("degenerate coordinates are not linear") {
+  std::unique_ptr<RDKit::ROMol> mol(RDKit::SmilesToMol("CCC"));
+  std::vector<RDGeom::Point2D> coords = {{0.0, 0.0}, {0.0, 0.0},
+                                         {1.0, 0.0}};
+  CHECK_FALSE(RDKit::MolDraw2D_detail::isLinearAtom(
+      *mol->getAtomWithIdx(1), coords));
+}
+
 void check_file_hash(const std::string &filename,
                      std::hash_result_t exp_hash = 0U) {
   //    std::cout << filename << " : " << hash_file(filename) << "U" <<
