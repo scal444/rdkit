@@ -671,7 +671,8 @@ int countAtomElec(const Atom *at) {
     // know that there aren't multiple unsaturations (detected
     // above in isAtomCandForArom())
     int nUnsaturations =
-        at->getValence(Atom::ValenceType::EXPLICIT) - at->getDegree();
+        static_cast<int>(at->getValence(Atom::ValenceType::EXPLICIT)) -
+        static_cast<int>(at->getDegree());
     if (nUnsaturations > 1) {
       res = 1;
     }
