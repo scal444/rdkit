@@ -1858,7 +1858,7 @@ void ResonanceMolSupplier::assignBondsFormalChargesHelper(
 // with the c vector
 ROMol *ResonanceMolSupplier::assignBondsFormalCharges(
     std::vector<unsigned int> &c) const {
-  auto *mol = new ROMol(this->mol());
+  auto *mol = new RWMol(this->mol());
   assignBondsFormalChargesHelper(*mol, c);
   ResonanceUtils::fixExplicitImplicitHs(*mol);
   ResonanceUtils::sanitizeMol((RWMol &)*mol);
