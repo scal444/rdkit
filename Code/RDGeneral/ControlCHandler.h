@@ -13,6 +13,7 @@
 
 #include <atomic>
 #include <csignal>
+#include <mutex>
 #include <stdexcept>
 
 namespace RDKit {
@@ -28,8 +29,7 @@ class ControlCCaught : public std::runtime_error {
 //! C++ calculation called from Python which intercepts the signal
 //! handler.  The C++ code must check the value of d_gotSignal
 //! periodically and act accordingly.  The destructor resets
-//! the signal handler and flag for next use, which is essential
-//! because it's a static variable.
+//! the signal handler and flag after the last concurrent user exits.
 //! Example usage, inside a boost::python wrapper:
 //!  ResultsObject results;
 //!  {
@@ -43,30 +43,39 @@ class ControlCCaught : public std::runtime_error {
 //! released, otherwise a crash is inevitable at some future point.
 class ControlCHandler {
  public:
-  ControlCHandler() { d_prev_handler = std::signal(SIGINT, signalHandler); }
+  ControlCHandler() {
+    std::lock_guard<std::mutex> lock(d_mutex);
+    if (d_handlerCount++ == 0) {
+      d_gotSignal.clear(std::memory_order_relaxed);
+      d_prev_handler = std::signal(SIGINT, signalHandler);
+    }
+  }
   ControlCHandler(const ControlCHandler &) = delete;
   ControlCHandler(ControlCHandler &&) = delete;
   ControlCHandler &operator=(const ControlCHandler &) = delete;
   ControlCHandler &operator=(ControlCHandler &&) = delete;
   ~ControlCHandler() {
-    std::signal(SIGINT, d_prev_handler);
-    d_gotSignal = false;
-  }
-  static bool getGotSignal() { return d_gotSignal; }
-  static void signalHandler(int signalNumber) {
-    if (signalNumber == SIGINT) {
-      d_gotSignal = true;
+    std::lock_guard<std::mutex> lock(d_mutex);
+    if (--d_handlerCount == 0) {
       std::signal(SIGINT, d_prev_handler);
+      d_gotSignal.clear(std::memory_order_relaxed);
     }
   }
-  static void reset() {
-    d_gotSignal = false;
-    std::signal(SIGINT, signalHandler);
+  static bool getGotSignal() {
+    return d_gotSignal.test(std::memory_order_relaxed);
   }
+  static void signalHandler(int signalNumber) {
+    if (signalNumber == SIGINT) {
+      d_gotSignal.test_and_set(std::memory_order_relaxed);
+    }
+  }
+  static void reset() { d_gotSignal.clear(std::memory_order_relaxed); }
 
  private:
-  inline static bool d_gotSignal{false};
-  inline static void (*d_prev_handler)(int);
+  inline static std::atomic_flag d_gotSignal{};
+  inline static std::mutex d_mutex;
+  inline static unsigned int d_handlerCount{0};
+  inline static void (*d_prev_handler)(int){SIG_DFL};
 };
 }  // namespace RDKit
 #endif  // CONTROLCHANDLER_H

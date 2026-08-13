@@ -7,8 +7,27 @@
 #include <sstream>
 
 #include "ConcurrentQueue.h"
+#include "ControlCHandler.h"
 
 using namespace RDKit;
+
+TEST_CASE("concurrent ControlCHandler lifetimes") {
+  constexpr unsigned int numThreads = 8;
+  constexpr unsigned int repetitions = 100;
+  std::vector<std::thread> threads;
+  threads.reserve(numThreads);
+  for (unsigned int i = 0; i < numThreads; ++i) {
+    threads.emplace_back([]() {
+      for (unsigned int j = 0; j < repetitions; ++j) {
+        ControlCHandler handler;
+        CHECK_FALSE(handler.getGotSignal());
+      }
+    });
+  }
+  for (auto &thread : threads) {
+    thread.join();
+  }
+}
 
 TEST_CASE("testPushAndPop") {
   ConcurrentQueue<int> *q = new ConcurrentQueue<int>(4);
