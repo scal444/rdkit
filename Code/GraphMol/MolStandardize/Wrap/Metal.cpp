@@ -48,9 +48,9 @@ class MetalDisconnectorWrap {
     if (auto *wmol = dynamic_cast<RDKit::RWMol *>(&mol)) {
       md_->disconnectInPlace(*wmol);
     } else {
-      RDKit::RWMol wmol(mol);
-      md_->disconnectInPlace(wmol);
-      mol = wmol;
+      RDKit::RWMol molCopy(mol);
+      md_->disconnectInPlace(molCopy);
+      mol = std::move(static_cast<RDKit::ROMol &>(molCopy));
     }
   }
 

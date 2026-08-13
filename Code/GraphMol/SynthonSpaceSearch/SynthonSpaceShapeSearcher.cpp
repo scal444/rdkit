@@ -319,7 +319,7 @@ void generateSomeShapes(
 
 // This is very similar to details::mapFragsBySmiles.
 std::map<std::string, std::vector<ROMol *>> mapFragsByAtoms(
-    const std::vector<std::vector<std::shared_ptr<ROMol>>> &fragSets,
+    std::vector<std::vector<std::shared_ptr<ROMol>>> &fragSets,
     bool &cancelled) {
   std::map<std::string, std::vector<ROMol *>> atomsToFrags;
   for (auto &fragSet : fragSets) {
