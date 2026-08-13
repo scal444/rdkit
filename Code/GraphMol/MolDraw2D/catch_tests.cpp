@@ -22,6 +22,7 @@
 #include <GraphMol/MolDraw2D/MolDraw2DDetails.h>
 #include <GraphMol/MolDraw2D/MolDraw2DSGroupData.h>
 #include <GraphMol/MolDraw2D/DrawMol.h>
+#include <GraphMol/MolDraw2D/StringRect.h>
 #include <GraphMol/FileParsers/FileParsers.h>
 #include <GraphMol/FileParsers/PNGParser.h>
 #include <boost/algorithm/string/split.hpp>
@@ -5127,9 +5128,38 @@ TEST_CASE("Github 5185 - don't draw atom indices between double bond") {
       outs << text;
       outs.flush();
 #ifdef RDK_BUILD_FREETYPE_SUPPORT
-      // the 2nd note
-      CHECK(text.find("<path class='note' d='M 94.4 129.6") !=
-            std::string::npos);
+      // The second note is atom 1's index. Its glyph must not intersect the
+      // centre line of the double bond, regardless of the font's metrics.
+      const std::regex notePath("<path class='note' d='([^']+)'");
+      auto note = std::sregex_iterator(text.begin(), text.end(), notePath);
+      const auto noteEnd = std::sregex_iterator();
+      REQUIRE(note != noteEnd);
+      REQUIRE(++note != noteEnd);
+
+      const std::regex number(
+          "-?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)(?:[eE][+-]?[0-9]+)?");
+      std::vector<double> coords;
+      const auto path = (*note)[1].str();
+      for (auto pos = std::sregex_iterator(path.begin(), path.end(), number);
+           pos != std::sregex_iterator(); ++pos) {
+        coords.push_back(std::stod(pos->str()));
+      }
+      REQUIRE(coords.size() >= 4);
+      REQUIRE(coords.size() % 2 == 0);
+
+      double minX = coords[0], maxX = coords[0];
+      double minY = coords[1], maxY = coords[1];
+      for (size_t i = 2; i < coords.size(); i += 2) {
+        minX = std::min(minX, coords[i]);
+        maxX = std::max(maxX, coords[i]);
+        minY = std::min(minY, coords[i + 1]);
+        maxY = std::max(maxY, coords[i + 1]);
+      }
+      const MolDraw2D_detail::StringRect noteBounds(
+          Point2D{}, Point2D{(minX + maxX) / 2.0, (minY + maxY) / 2.0},
+          maxX - minX, maxY - minY);
+      CHECK_FALSE(MolDraw2D_detail::doesLineIntersect(
+          noteBounds, drawer.getDrawCoords(1), drawer.getDrawCoords(2), 0.0));
       // check_file_hash("testGithub_5185.svg");
 #else
       CHECK(text.find("<text x='91.5' y='130.0' class='note' ") !=
