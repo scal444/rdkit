@@ -270,7 +270,8 @@ bool RGroupDecompositionParameters::prepareCore(RWMol &core,
       // we should not need these on (non r group) core atoms when
       // allowMultipleRGroupsOnUnlabelled is set, but it is useful in case
       // insufficient dummy groups are added to the core
-      if (setLabel(atom, indexOffset - atom->getIdx(), foundLabels, maxLabel,
+      if (setLabel(atom, indexOffset - static_cast<int>(atom->getIdx()),
+                   foundLabels, maxLabel,
                    relabel, Labelling::INDEX_LABELS)) {
       }
       found = true;
