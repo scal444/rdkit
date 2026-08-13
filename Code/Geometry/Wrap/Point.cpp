@@ -64,7 +64,7 @@ double pointNdGetItem(const PointND &self, int idx) {
     throw IndexErrorException(idx);
   }
   if (idx < 0) {
-    idx = self.dimension() + idx;
+    idx = static_cast<int>(self.dimension()) + idx;
   }
   return self[idx];
 }
