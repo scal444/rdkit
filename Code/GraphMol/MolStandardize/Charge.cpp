@@ -390,7 +390,7 @@ void Uncharger::unchargeInPlace(RWMol &mol) {
 
   // Determine the amount of positive charge that is not
   // possible to remove
-  unsigned int q_matched = 0;
+  int q_matched = 0;
   for (const auto &match : q_matches) {
     q_matched += mol.getAtomWithIdx(match[0].second)->getFormalCharge();
   }
