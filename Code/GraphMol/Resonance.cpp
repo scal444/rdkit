@@ -1201,18 +1201,21 @@ AtomElectrons *ConjElectrons::getAtomElectronsWithIdx(unsigned int ai) {
 
 // count number of total electrons
 unsigned int ConjElectrons::countTotalElectrons() {
+  int totalElectrons = 0;
   // count total number of valence electrons in conjugated group
   for (ConjBondMap::const_iterator it = d_conjBondMap.begin();
        it != d_conjBondMap.end(); ++it) {
-    d_totalElectrons += (2 * it->second->orderFromBond());
+    totalElectrons += 2 * static_cast<int>(it->second->orderFromBond());
   }
   for (ConjAtomMap::const_iterator it = d_conjAtomMap.begin();
        it != d_conjAtomMap.end(); ++it) {
     const Atom *a = it->second->atom();
-    d_totalElectrons +=
+    totalElectrons +=
         it->second->oe() - static_cast<int>(a->getTotalValence()) -
         a->getFormalCharge();
   }
+  CHECK_INVARIANT(totalElectrons >= 0, "negative conjugated electron count");
+  d_totalElectrons = static_cast<unsigned int>(totalElectrons);
   return d_totalElectrons;
 }
 
