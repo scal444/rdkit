@@ -51,9 +51,11 @@ LogStateSetter::LogStateSetter(RDLoggerList toEnable) : LogStateSetter() {
 
 LogStateSetter::~LogStateSetter() {
   for (auto i = 0u; i < allLogs.size(); ++i) {
-    if (*allLogs[i]) {
-      (*allLogs[i])->df_enabled.store((*allLogs[i])->df_enabled.load() ^
-                                      (d_origState >> i & 1));
+    if (*allLogs[i] && (d_origState >> i & 1)) {
+      auto enabled = (*allLogs[i])->df_enabled.load();
+      while (!(*allLogs[i])->df_enabled.compare_exchange_weak(enabled,
+                                                               !enabled)) {
+      }
     }
   }
 }
