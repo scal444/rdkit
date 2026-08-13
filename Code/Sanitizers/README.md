@@ -30,7 +30,9 @@ The runner enables symbolization, stops on the first report, and uses a small
 launcher to preload the matching shared sanitizer runtime before Python starts.
 ASan also enables the loose cross-translation-unit initialization-order check;
 its stricter mode is deferred because shared-library initialization ordering can
-produce false positives there.
+produce false positives there. The build instruments pointer comparisons and
+subtractions, and the runtime reports invalid pairs even when both pointers are
+null.
 Override `ASAN_OPTIONS`,
 `TSAN_OPTIONS`, or `UBSAN_OPTIONS` in the shell when layering in more checks.
 LeakSanitizer is initially disabled because it cannot run under ptrace-based

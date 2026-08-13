@@ -57,7 +57,7 @@ test_suite() {
   case "$sanitizer" in
     asan)
       ASAN_OPTIONS=$(with_default_suppressions \
-        "${ASAN_OPTIONS:-detect_leaks=0:halt_on_error=1:check_initialization_order=1}" \
+        "${ASAN_OPTIONS:-detect_leaks=0:halt_on_error=1:check_initialization_order=1:detect_invalid_pointer_pairs=2}" \
         "$source_dir/Code/Sanitizers/asan.supp")
       export ASAN_OPTIONS
       ;;
