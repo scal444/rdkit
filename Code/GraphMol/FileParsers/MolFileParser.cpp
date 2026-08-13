@@ -693,7 +693,7 @@ void ParseRingBondCountLine(RWMol *mol, const std::string &text,
           q->setVal(0);
           break;
         case -2:
-          q->setVal(0xDEADBEEF);
+          q->setVal(static_cast<int>(0xDEADBEEFu));
           mol->setProp(common_properties::_NeedsQueryScan, 1);
           break;
         case 1:
