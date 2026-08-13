@@ -1,0 +1,9 @@
+# ThreadSanitizer suppressions for defects in external, unbundled libraries.
+#
+# Keep this file empty until a report has been confirmed to originate in such a
+# library. Prefer the narrowest stable function pattern; do not suppress a race
+# on RDKit-owned state merely because the access occurs in a library template.
+#
+# Syntax reference:
+#   race:function_name_pattern
+#   race:library_name_pattern

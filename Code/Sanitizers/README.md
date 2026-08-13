@@ -28,8 +28,19 @@ Code/Sanitizers/run.sh asan test -R GraphMol -j 1
 
 The runner enables symbolization, stops on the first report, and uses a small
 launcher to preload the matching shared sanitizer runtime before Python starts.
+ASan also enables the loose cross-translation-unit initialization-order check;
+its stricter mode is deferred because shared-library initialization ordering can
+produce false positives there.
 Override `ASAN_OPTIONS`,
 `TSAN_OPTIONS`, or `UBSAN_OPTIONS` in the shell when layering in more checks.
 LeakSanitizer is initially disabled because it cannot run under ptrace-based
 sandboxes; enable it outside such a sandbox with
 `ASAN_OPTIONS=detect_leaks=1:halt_on_error=1`.
+
+The runner also loads `asan.supp`, `tsan.supp`, or `ubsan.supp`. These files are
+reserved for confirmed defects in external libraries that RDKit does not
+bundle. They intentionally contain no active entries: a report should not be
+suppressed merely because an external header or runtime function appears in
+its stack when the invalid state is owned by RDKit. Set an explicit
+`suppressions=` entry in the corresponding sanitizer options to use a different
+file.
