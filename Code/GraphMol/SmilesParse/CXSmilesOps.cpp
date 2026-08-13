@@ -1246,7 +1246,7 @@ bool parse_substitution(Iterator &first, Iterator last, RDKit::RWMol &mol,
       if (!atom->hasQuery()) {
         atom = QueryOps::replaceAtomWithQueryAtom(&mol, atom);
       }
-      atom->expandQuery(makeAtomNonHydrogenDegreeQuery(n2),
+      atom->expandQuery(makeAtomNonHydrogenDegreeQuery(static_cast<int>(n2)),
                         Queries::COMPOSITE_AND);
     }
     if (first < last && *first == ',') {
