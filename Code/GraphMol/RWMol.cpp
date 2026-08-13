@@ -152,11 +152,12 @@ void RWMol::insertMol(const ROMol &other) {
     // take care of atom-numbering-dependent properties:
     if (INT_VECT nAtoms;
         newAt->getPropIfPresent(common_properties::_ringStereoAtoms, nAtoms)) {
+      const auto atomOffset = static_cast<int>(origNumAtoms);
       for (auto &val : nAtoms) {
         if (val < 0) {
-          val = -1 * (-val + origNumAtoms);
+          val -= atomOffset;
         } else {
-          val += origNumAtoms;
+          val += atomOffset;
         }
       }
       newAt->setProp(common_properties::_ringStereoAtoms, nAtoms, true);
