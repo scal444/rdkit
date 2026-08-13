@@ -4295,7 +4295,7 @@ M  END)CTAB"_ctab;
     CHECK(getSubstanceGroups(*m).size() == 1);
     auto mb = MolToV3KMolBlock(*m);
 
-    auto pos = 0u;
+    std::string::size_type pos = 0;
     auto count = 0u;
     std::string target{"FIELDDISP"};
     while (pos < mb.size()) {
