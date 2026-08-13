@@ -1210,7 +1210,8 @@ unsigned int ConjElectrons::countTotalElectrons() {
        it != d_conjAtomMap.end(); ++it) {
     const Atom *a = it->second->atom();
     d_totalElectrons +=
-        it->second->oe() - a->getTotalValence() - a->getFormalCharge();
+        it->second->oe() - static_cast<int>(a->getTotalValence()) -
+        a->getFormalCharge();
   }
   return d_totalElectrons;
 }

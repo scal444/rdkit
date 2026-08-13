@@ -82,7 +82,7 @@ int calcOxidationNumberByEN(const Atom *atom) {
       oxNum += bondType * sf(en_diff);
     }
   }
-  oxNum += sf(parEN - get_en(1)) * atom->getTotalNumHs();
+  oxNum += sf(parEN - get_en(1)) * static_cast<int>(atom->getTotalNumHs());
   oxNum += atom->getFormalCharge();
   return oxNum;
 }
