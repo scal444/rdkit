@@ -2872,7 +2872,7 @@ void MarvinMultipleSgroup::expandOneMultipleSgroup() {
       actualParent->bonds.push_back(copyBond);
     }
 
-    for (int i = this->sgroups.size() - 1; i >= 0; --i) {
+    for (auto i = this->sgroups.size(); i-- > 0;) {
       auto copiedMol = this->sgroups[i]->copyMol(idAppendage);
       moveSgroup(copiedMol, this->parent);
     }
