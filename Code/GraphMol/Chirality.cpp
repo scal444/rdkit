@@ -1556,11 +1556,12 @@ void findChiralAtomSpecialCases(ROMol &mol,
           !ratom->hasProp(common_properties::_CIPCode) &&
           atomIsCandidateForRingStereochem(mol, ratom, atomRanks)) {
         int same = (ratom->getChiralTag() == atom->getChiralTag()) ? 1 : -1;
-        ringStereoAtoms.push_back(same * (ratom->getIdx() + 1));
+        ringStereoAtoms.push_back(
+            same * static_cast<int>(ratom->getIdx() + 1));
         INT_VECT oringatoms(0);
         ratom->getPropIfPresent(common_properties::_ringStereoAtoms,
                                 oringatoms);
-        oringatoms.push_back(same * (atom->getIdx() + 1));
+        oringatoms.push_back(same * static_cast<int>(atom->getIdx() + 1));
         ratom->setProp(common_properties::_ringStereoAtoms, oringatoms, true);
         possibleSpecialCases.set(ratom->getIdx());
         possibleSpecialCases.set(atom->getIdx());
