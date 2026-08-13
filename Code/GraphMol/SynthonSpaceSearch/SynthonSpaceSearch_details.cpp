@@ -401,7 +401,8 @@ void doInitialFragmentation(
   // Now do the splits.  Symmetrical molecules can give rise to the same
   // fragment set in different ways so keep track of what we've had to
   // avoid duplicates.
-  std::int64_t lastRingBond = splitBonds.size() - 1;
+  std::int64_t lastRingBond =
+      static_cast<std::int64_t>(splitBonds.size()) - 1;
   std::atomic<std::int64_t> mostRecentRingBond = -1;
   if (const auto numThreadsToUse = getNumThreadsToUse(numThreads);
       numThreads > 1) {
