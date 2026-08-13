@@ -870,19 +870,12 @@ bool finalChiralChecks(RDGeom::PointPtrVect *positions,
 bool embedPoints(RDGeom::PointPtrVect *positions, detail::EmbedArgs eargs,
                  EmbedParameters &embedParams, int seed, TimePoint *end_time) {
   PRECONDITION(positions, "bogus positions");
-  if (embedParams.maxIterations == 0) {
-    embedParams.maxIterations = 10 * positions->size();
-  }
   RDNumeric::DoubleSymmMatrix distMat(positions->size(), 0.0);
 
   // The basin threshold just gets us into trouble when we're using
   // random coordinates since it ends up ignoring 1-4 (and higher)
   // interactions. This causes us to get folded-up (and self-penetrating)
   // conformations for large flexible molecules
-  if (embedParams.useRandomCoords) {
-    embedParams.basinThresh = 1e8;
-  }
-
   std::unique_ptr<RDKit::rng_type> generator;
   std::unique_ptr<RDKit::uniform_double> distrib;
   std::unique_ptr<RDKit::double_source_type> rngMgr;
@@ -1036,12 +1029,6 @@ bool embedPointsAIO(RDGeom::PointPtrVect *positions, detail::EmbedArgs eargs,
                     EmbedParameters &embedParams, int seed,
                     TimePoint *end_time) {
   PRECONDITION(positions, "bogus positions");
-  if (embedParams.maxIterations == 0) {
-    embedParams.maxIterations = 10 * positions->size();
-  }
-  if (embedParams.useRandomCoords) {
-    embedParams.basinThresh = 1e8;
-  }
   RDNumeric::DoubleSymmMatrix distMat(positions->size(), 0.0);
   std::unique_ptr<RDKit::rng_type> generator;
   std::unique_ptr<RDKit::uniform_double> distrib;
@@ -1851,6 +1838,15 @@ void EmbedMultipleConfs(ROMol &mol, INT_VECT &res, unsigned int numConfs,
       fourD = true;
     }
     int numThreads = getNumThreadsToUse(params.numThreads);
+
+    // These defaults are shared by all worker threads, so resolve them before
+    // launching any of the workers.
+    if (params.maxIterations == 0) {
+      params.maxIterations = 10 * nAtoms;
+    }
+    if (params.useRandomCoords) {
+      params.basinThresh = 1e8;
+    }
 
     ControlCHandler hdlr;
 
