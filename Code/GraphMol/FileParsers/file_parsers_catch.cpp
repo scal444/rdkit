@@ -6401,8 +6401,8 @@ TEST_CASE("MaeWriter basic testing", "[mae][MaeWriter][writer]") {
       // Discard data until we reach the bond block
     }
 
-    unsigned from_pos = -1;  // offset comment
-    unsigned to_pos = -1;    // offset comment
+    unsigned from_pos = std::numeric_limits<unsigned int>::max();
+    unsigned to_pos = std::numeric_limits<unsigned int>::max();
     bool from_seen = false;
     bool to_seen = false;
 
