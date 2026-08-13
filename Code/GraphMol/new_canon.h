@@ -404,11 +404,11 @@ class RDKIT_GRAPHMOL_EXPORT AtomCompareFunctor {
       return 1;
     }
     // charge
-    ivi = dp_atoms[i].atom->getFormalCharge();
-    ivj = dp_atoms[j].atom->getFormalCharge();
-    if (ivi < ivj) {
+    const auto chargei = dp_atoms[i].atom->getFormalCharge();
+    const auto chargej = dp_atoms[j].atom->getFormalCharge();
+    if (chargei < chargej) {
       return -1;
-    } else if (ivi > ivj) {
+    } else if (chargei > chargej) {
       return 1;
     }
     // presence of specified chirality if it's being used
