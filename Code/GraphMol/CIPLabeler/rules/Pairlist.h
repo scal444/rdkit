@@ -169,7 +169,9 @@ class PairList {
    */
   void addAndPair(Descriptor descriptor) {
     // if this isn't the first descriptor - check the pairing
-    if (!d_descriptors.empty() && d_descriptors[0] == descriptor) {
+    if (!d_descriptors.empty() &&
+        d_descriptors.size() < static_cast<size_t>(numPairingBits) &&
+        d_descriptors[0] == descriptor) {
       // set the bit to indicate a pair
       d_pairing |= static_cast<pairing_t>(1)
                    << (numPairingBits - 1 - d_descriptors.size());

@@ -10,6 +10,7 @@
 
 #include <bitset>
 #include <list>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -131,6 +132,13 @@ TEST_CASE("Descriptor lists", "[accurateCIP]") {
     list2.add(Descriptor::M);
     CHECK(list1.toString() == "R:llu");
     CHECK(list2.toString() == "R:uul");
+  }
+  SECTION("Pairing beyond representation capacity") {
+    for (auto i = 0; i < PairList::numPairingBits + 1; ++i) {
+      CHECK(descriptors.add(Descriptor::R));
+    }
+    CHECK(descriptors.getPairing() ==
+          std::numeric_limits<PairList::pairing_t>::max() >> 1);
   }
 }
 
