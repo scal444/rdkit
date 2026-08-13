@@ -1049,7 +1049,7 @@ void removeHs(RWMol &mol, const RemoveHsParameters &ps, bool sanitize) {
   // now that we know which atoms need to be removed, go ahead and remove them
   // NOTE: there's too much complexity around stereochemistry here
   // to be able to safely use batch editing.
-  for (int idx = mol.getNumAtoms() - 1; idx >= 0; --idx) {
+  for (auto idx = mol.getNumAtoms(); idx-- > 0;) {
     if (atomsToRemove[idx]) {
       molRemoveH(mol, idx, ps.updateExplicitCount);
     }
