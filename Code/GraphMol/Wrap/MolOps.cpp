@@ -450,13 +450,23 @@ ROMol *getNormal(const RWMol &mol) {
 
 void kekulizeMol(ROMol &mol, bool clearAromaticFlags = false,
                  bool canonical = true) {
-  auto &wmol = static_cast<RWMol &>(mol);
-  MolOps::Kekulize(wmol, clearAromaticFlags, canonical);
+  if (auto *wmol = dynamic_cast<RWMol *>(&mol)) {
+    MolOps::Kekulize(*wmol, clearAromaticFlags, canonical);
+  } else {
+    RWMol molCopy(mol);
+    MolOps::Kekulize(molCopy, clearAromaticFlags, canonical);
+    mol = std::move(static_cast<ROMol &>(molCopy));
+  }
 }
 void kekulizeMolIfPossible(ROMol &mol, bool clearAromaticFlags = false,
                            bool canonical = true) {
-  auto &wmol = static_cast<RWMol &>(mol);
-  MolOps::KekulizeIfPossible(wmol, clearAromaticFlags, canonical);
+  if (auto *wmol = dynamic_cast<RWMol *>(&mol)) {
+    MolOps::KekulizeIfPossible(*wmol, clearAromaticFlags, canonical);
+  } else {
+    RWMol molCopy(mol);
+    MolOps::KekulizeIfPossible(molCopy, clearAromaticFlags, canonical);
+    mol = std::move(static_cast<ROMol &>(molCopy));
+  }
 }
 
 void cleanupMol(ROMol &mol) {

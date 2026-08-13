@@ -26,7 +26,13 @@ ROMol *reionizeHelper(MolStandardize::Reionizer &self, const ROMol &mol) {
 }
 
 void reionizeInPlaceHelper(MolStandardize::Reionizer &self, ROMol &mol) {
-  self.reionizeInPlace(static_cast<RWMol &>(mol));
+  if (auto *wmol = dynamic_cast<RWMol *>(&mol)) {
+    self.reionizeInPlace(*wmol);
+  } else {
+    RWMol molCopy(mol);
+    self.reionizeInPlace(molCopy);
+    mol = std::move(static_cast<ROMol &>(molCopy));
+  }
 }
 MolStandardize::Reionizer *reionizerFromData(const std::string &data,
                                              python::object chargeCorrections) {
