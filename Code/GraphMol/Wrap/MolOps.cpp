@@ -1060,7 +1060,8 @@ python::tuple hasQueryHsHelper(const ROMol &m) {
 //  correctly.
 void _testSetProps(RDProps &props, const std::string &prefix) {
   props.setProp<bool>(prefix + "bool", true);
-  props.setProp<unsigned int>(prefix + "uint", -1);
+  props.setProp<unsigned int>(prefix + "uint",
+                              std::numeric_limits<unsigned int>::max());
   props.setProp<double>(prefix + "double", 3.14159);
 
   std::vector<int> svint;
