@@ -405,9 +405,9 @@ void reapplyWedging(ROMol &mol, bool allBondTypes, bool verify) {
   if (auto *wmol = dynamic_cast<RWMol *>(&mol)) {
     RDKit::Chirality::reapplyMolBlockWedging(*wmol, allBondTypes, verify);
   } else {
-    RWMol wmol(mol);
-    RDKit::Chirality::reapplyMolBlockWedging(wmol, allBondTypes, verify);
-    mol = wmol;
+    RWMol molCopy(mol);
+    RDKit::Chirality::reapplyMolBlockWedging(molCopy, allBondTypes, verify);
+    mol = std::move(static_cast<ROMol &>(molCopy));
   }
 }
 
@@ -433,7 +433,7 @@ MolOps::SanitizeFlags sanitizeMol(ROMol &mol, boost::uint64_t sanitizeOps,
     MolOps::sanitizeMol(*wmol, operationThatFailed, sanitizeOps);
   }
   if (wmolCopy) {
-    mol = *wmolCopy;
+    mol = std::move(static_cast<ROMol &>(*wmolCopy));
   }
   return static_cast<MolOps::SanitizeFlags>(operationThatFailed);
 }
