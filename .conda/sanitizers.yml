@@ -28,7 +28,8 @@ dependencies:
   - freetype=2.13.3
   - pillow
   - pandas
-  - matplotlib
+  # Newer builds require FreeType releases that change MolDraw reference output.
+  - matplotlib=3.10.6
   - catch2
   - bzip2
   - zlib
