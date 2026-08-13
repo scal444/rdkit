@@ -129,10 +129,10 @@ char *Base64Decode(const char *inText, unsigned int *size) {
   // okay, now there can be 2 or 3 chars remaining to be processed
   //  (before the padding)
   if (nInBlock > 1) {
-    res[pos++] = (block[0] << 2) | (block[1] >> 4);
+    res[pos++] = static_cast<char>((block[0] << 2) | (block[1] >> 4));
     if (nInBlock > 2) {
-      res[pos++] = (block[1] << 4) | (block[2] >> 2);
-      res[pos] = (block[2] << 6);
+      res[pos++] = static_cast<char>((block[1] << 4) | (block[2] >> 2));
+      res[pos] = static_cast<char>(block[2] << 6);
     }
   }
   *size = pos;

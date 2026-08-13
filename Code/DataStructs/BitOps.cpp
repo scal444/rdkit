@@ -780,7 +780,7 @@ void UpdateBitVectFromBinaryText(T1 &bv1, const std::string &fps) {
   PRECONDITION(fps.length() * 8 >= bv1.getNumBits(), "bad FPS length");
   unsigned int bitIdx = 0;
   for (unsigned int i = 0; i < fps.size() && bitIdx < bv1.getNumBits(); i++) {
-    unsigned short c = fps[i];
+    unsigned short c = static_cast<unsigned char>(fps[i]);
     for (unsigned int bit = 0; bit < 8 && bitIdx < bv1.getNumBits();
          ++bit, ++bitIdx) {
       if (c & (1 << bit)) {
