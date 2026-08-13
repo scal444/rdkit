@@ -527,7 +527,7 @@ class RDKIT_FILEPARSERS_EXPORT SmilesMolSupplier : public MolSupplier {
   bool df_end = false;  // have we reached the end of the file?
   long d_len = 0;       // total number of smiles in the file
   long d_next = 0;      // the  molecule we are ready to read
-  size_t d_line = 0;    // line number we are currently on
+  int d_line = 0;       // line number we are currently on
   SmilesMolSupplierParams d_params;
   std::vector<std::streampos>
       d_molpos;  // vector of positions in the file for molecules
