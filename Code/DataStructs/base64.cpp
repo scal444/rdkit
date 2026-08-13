@@ -117,9 +117,9 @@ char *Base64Decode(const char *inText, unsigned int *size) {
       block[nInBlock++] = transTable[c];
       if (nInBlock == 4) {
         // finished a block
-        res[pos++] = (block[0] << 2) | (block[1] >> 4);
-        res[pos++] = (block[1] << 4) | (block[2] >> 2);
-        res[pos++] = (block[2] << 6) | block[3];
+        res[pos++] = static_cast<char>((block[0] << 2) | (block[1] >> 4));
+        res[pos++] = static_cast<char>((block[1] << 4) | (block[2] >> 2));
+        res[pos++] = static_cast<char>((block[2] << 6) | block[3]);
         nInBlock = 0;
       }
     }

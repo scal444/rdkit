@@ -294,14 +294,16 @@ std::string SparseBitVect::toString() const {
   tInt = getNumOnBits();
   RDKit::streamWrite(ss, tInt);
 
-  int prev = -1;
+  unsigned int prev = 0;
+  bool first = true;
   unsigned int zeroes;
-  for (int dp_bit : *dp_bits) {
-    zeroes = dp_bit - prev - 1;
+  for (auto dp_bit : *dp_bits) {
+    zeroes = first ? dp_bit : dp_bit - prev - 1;
     RDKit::appendPackedIntToStream(ss, zeroes);
     prev = dp_bit;
+    first = false;
   }
-  zeroes = d_size - prev - 1;
+  zeroes = first ? d_size : d_size - prev - 1;
   RDKit::appendPackedIntToStream(ss, zeroes);
 
   std::string res(ss.str());

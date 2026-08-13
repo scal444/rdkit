@@ -19,7 +19,7 @@ using std::set;
 #include <algorithm>
 #include <limits>
 
-typedef set<int> IntSet;
+typedef set<unsigned int> IntSet;
 typedef IntSet::iterator IntSetIter;
 typedef IntSet::const_iterator IntSetConstIter;
 
