@@ -250,11 +250,11 @@ void getConnectivityInvariants(const ROMol &mol, std::vector<uint32_t> &invars,
     components.push_back(atom->getAtomicNum());
     components.push_back(atom->getTotalDegree());
     components.push_back(atom->getTotalNumHs(true));
-    components.push_back(atom->getFormalCharge());
+    components.push_back(static_cast<uint32_t>(atom->getFormalCharge()));
     int deltaMass = static_cast<int>(
         atom->getMass() -
         PeriodicTable::getTable()->getAtomicWeight(atom->getAtomicNum()));
-    components.push_back(deltaMass);
+    components.push_back(static_cast<uint32_t>(deltaMass));
 
     if (includeRingMembership &&
         atom->getOwningMol().getRingInfo()->numAtomRings(atom->getIdx())) {
