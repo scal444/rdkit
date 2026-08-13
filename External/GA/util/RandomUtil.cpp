@@ -24,11 +24,18 @@ RandomUtil::RandomUtil() : realDistribution(0, 1) {}
 
 RandomUtil::~RandomUtil() {}
 
-void RandomUtil::seed(uint32_t seed_) { rng.seed(seed_); }
+void RandomUtil::seed(uint32_t seed_) {
+  const std::lock_guard<std::mutex> lock(mutex);
+  rng.seed(seed_);
+}
 
-double RandomUtil::normalRand() { return realDistribution(rng); }
+double RandomUtil::normalRand() {
+  const std::lock_guard<std::mutex> lock(mutex);
+  return realDistribution(rng);
+}
 
 int RandomUtil::randomInt(int bottom, int top) {
+  const std::lock_guard<std::mutex> lock(mutex);
   int step = rng() % (top - bottom);
   return bottom + step;
 }
