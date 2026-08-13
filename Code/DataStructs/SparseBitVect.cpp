@@ -259,7 +259,8 @@ void SparseBitVect::getOnBits(IntVect &v) const {
   }
   v.reserve(nOn);
   v.resize(nOn);
-  std::copy(dp_bits->begin(), dp_bits->end(), v.begin());
+  std::transform(dp_bits->begin(), dp_bits->end(), v.begin(),
+                 [](unsigned int bit) { return static_cast<int>(bit); });
 };
 
 // """ -------------------------------------------------------
