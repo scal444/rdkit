@@ -636,7 +636,7 @@ bool parse_ring_bonds(Iterator &first, Iterator last, RDKit::RWMol &mol,
         atom = QueryOps::replaceAtomWithQueryAtom(&mol, atom);
       }
       if (!gt) {
-        atom->expandQuery(makeAtomRingBondCountQuery(n2),
+        atom->expandQuery(makeAtomRingBondCountQuery(static_cast<int>(n2)),
                           Queries::COMPOSITE_AND);
       } else {
         auto q = static_cast<ATOM_EQUALS_QUERY *>(new ATOM_LESSEQUAL_QUERY);
