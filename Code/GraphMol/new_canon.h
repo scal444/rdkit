@@ -87,12 +87,9 @@ struct RDKIT_GRAPHMOL_EXPORT bondholder {
     } else if (x.bondStereo > y.bondStereo) {
       return 1;
     }
-    const auto xsc = x.nbrSymClass / div;
-    const auto ysc = y.nbrSymClass / div;
-    if (xsc < ysc) {
-      return -1;
-    } else if (xsc > ysc) {
-      return 1;
+    auto scdiv = static_cast<int>(x.nbrSymClass / div - y.nbrSymClass / div);
+    if (scdiv) {
+      return scdiv;
     }
     if (x.bondStereo && y.bondStereo) {
       auto cs = x.compareStereo(y);
@@ -193,10 +190,10 @@ class RDKIT_GRAPHMOL_EXPORT SpecialChiralityAtomCompareFunctor {
     }
 
     for (unsigned int ii = 0; ii < swapsi.size() && ii < swapsj.size(); ++ii) {
-      if (swapsi[ii].second < swapsj[ii].second) {
-        return -1;
-      } else if (swapsi[ii].second > swapsj[ii].second) {
-        return 1;
+      int cmp = static_cast<int>(swapsi[ii].second - swapsj[ii].second);
+
+      if (cmp) {
+        return cmp;
       }
     }
 
@@ -404,11 +401,11 @@ class RDKIT_GRAPHMOL_EXPORT AtomCompareFunctor {
       return 1;
     }
     // charge
-    const auto chargei = dp_atoms[i].atom->getFormalCharge();
-    const auto chargej = dp_atoms[j].atom->getFormalCharge();
-    if (chargei < chargej) {
+    ivi = static_cast<unsigned int>(dp_atoms[i].atom->getFormalCharge());
+    ivj = static_cast<unsigned int>(dp_atoms[j].atom->getFormalCharge());
+    if (ivi < ivj) {
       return -1;
-    } else if (chargei > chargej) {
+    } else if (ivi > ivj) {
       return 1;
     }
     // presence of specified chirality if it's being used
