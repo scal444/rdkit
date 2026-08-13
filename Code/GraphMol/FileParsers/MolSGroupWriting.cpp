@@ -137,7 +137,7 @@ std::string BuildV2000SPLLines(const ROMol &mol) {
   const auto &sgroups = getSubstanceGroups(mol);
   for (auto sg = sgroups.begin(); sg != sgroups.end(); ++sg) {
     // Write field only if a parent is defined
-    unsigned int parentIdx = -1;
+    unsigned int parentIdx = 0;
     if (sg->getPropIfPresent("PARENT", parentIdx)) {
       temp << FormatV2000IntField(1 + (sg - sgroups.begin()))
            << FormatV2000IntField(parentIdx);
@@ -536,7 +536,7 @@ std::string FormatV3000StringPropertyBlock(const std::string &prop,
 std::string FormatV3000ParentBlock(const SubstanceGroup &sgroup) {
   std::ostringstream ret;
 
-  unsigned int parentIdx = -1;
+  unsigned int parentIdx = 0;
   if (sgroup.getPropIfPresent("PARENT", parentIdx)) {
     ret << " PARENT=" << parentIdx;
   }
