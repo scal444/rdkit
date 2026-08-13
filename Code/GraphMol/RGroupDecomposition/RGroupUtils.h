@@ -25,7 +25,7 @@ RDKIT_RGROUPDECOMPOSITION_EXPORT extern const std::string done;
 RDKIT_RGROUPDECOMPOSITION_EXPORT extern const std::string
     UNLABELED_CORE_ATTACHMENT;
 
-const unsigned int EMPTY_CORE_LABEL = -100000;
+const int EMPTY_CORE_LABEL = -100000;
 
 // Various places where rgroups can be labeled
 //  the order of precedence
