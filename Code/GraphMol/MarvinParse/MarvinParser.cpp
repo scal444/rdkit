@@ -572,8 +572,12 @@ class MarvinCMLReader {
           atoms.push_back(mol->getAtomWithIdx(atomPtr));
         }
 
+        const auto groupNumber = groupPtr->groupNumber < 0
+                                     ? 0u
+                                     : static_cast<unsigned int>(
+                                           groupPtr->groupNumber);
         groups.emplace_back(groupPtr->groupType, std::move(atoms),
-                            std::move(bonds), groupPtr->groupNumber);
+                            std::move(bonds), groupNumber);
       }
       if (!groups.empty()) {
         mol->setStereoGroups(std::move(groups));
