@@ -7,3 +7,9 @@
 # Syntax reference:
 #   signed-integer-overflow:function_name_pattern
 #   alignment:library_name_pattern
+
+# Downloaded ChemDraw SDK source; not tracked or shipped by RDKit.
+signed-integer-overflow:CDXDocument::XMLStoreAttribute
+
+# Downloaded CoordGen source; not tracked or shipped by RDKit.
+signed-integer-overflow:sketcherMinimizer::canonicalOrdering
