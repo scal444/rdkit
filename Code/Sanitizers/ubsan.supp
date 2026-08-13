@@ -40,3 +40,8 @@ implicit-integer-sign-change:*atomicity.h*
 # The Conda-provided libstdc++ string_view comparison computes a signed result
 # from an unsigned size difference.
 implicit-integer-sign-change:*string_view*
+
+# Boost RNG and CRC implementations intentionally discard high bits from
+# unsigned shifts.
+shift-base:*mersenne_twister.hpp*
+shift-base:*crc.hpp*
