@@ -76,8 +76,8 @@ class RDKIT_FMCS_EXPORT SubstructureCache {
           unsigned int atom2 =
               seed.MoleculeFragment.SeedAtomIdxMap.find(bond->getEndAtomIdx())
                   ->second;
-          unsigned int v1 = prevCodes[atom1];
-          unsigned int v2 = prevCodes[atom2];
+          unsigned int v1 = static_cast<unsigned int>(prevCodes[atom1]);
+          unsigned int v2 = static_cast<unsigned int>(prevCodes[atom2]);
 
           currCodes[atom1] += v2 * v2 + (v2 + 23) * (order + 1721);
           currCodes[atom2] += v1 * v1 + (v1 + 23) * (order + 1721);
