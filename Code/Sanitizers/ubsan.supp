@@ -9,11 +9,27 @@
 #   alignment:library_name_pattern
 
 # Downloaded ChemDraw SDK source; not tracked or shipped by RDKit.
-signed-integer-overflow:CDXDocument.cpp
-implicit-integer-sign-change:CDXIO.h
+signed-integer-overflow:*CDXDocument.cpp*
+implicit-integer-sign-change:*CDXDocument.cpp*
+implicit-signed-integer-truncation,implicit-integer-sign-change:*CDXIO.h*
+implicit-signed-integer-truncation:*CDXIO.h*
+float-cast-overflow:*CDXIO.h*
+implicit-integer-sign-change:*CDXIO.cpp*
+implicit-signed-integer-truncation:*CDXObject.cpp*
+implicit-integer-sign-change:*CDXUnicode.cpp*
+implicit-signed-integer-truncation:*CDXArrow.cpp*
+implicit-signed-integer-truncation,implicit-integer-sign-change:*CDXArrow.cpp*
 
 # Downloaded CoordGen source; not tracked or shipped by RDKit.
-signed-integer-overflow:sketcherMinimizer.cpp
+signed-integer-overflow:*sketcherMinimizer.cpp*
 
 # Conda-provided Boost 1.90 integer-range iterator implementation.
-implicit-integer-sign-change:irange.hpp
+implicit-integer-sign-change:*irange.hpp*
+
+# The Conda-provided libstdc++ shared_ptr implementation decrements its
+# reference count through a signed-to-unsigned conversion.
+implicit-integer-sign-change:*atomicity.h*
+
+# The Conda-provided libstdc++ string_view comparison computes a signed result
+# from an unsigned size difference.
+implicit-integer-sign-change:*string_view*
