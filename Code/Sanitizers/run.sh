@@ -31,6 +31,15 @@ fi
 
 source_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 
+with_default_suppressions() {
+  local options=$1
+  local suppression_file=$2
+  if [[ $options != *"suppressions="* ]]; then
+    options="${options:+$options:}suppressions=$suppression_file"
+  fi
+  printf '%s' "$options"
+}
+
 configure() {
   (cd "$source_dir" && cmake --preset "$sanitizer")
 }
@@ -47,13 +56,22 @@ test_suite() {
 
   case "$sanitizer" in
     asan)
-      export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0:halt_on_error=1}"
+      ASAN_OPTIONS=$(with_default_suppressions \
+        "${ASAN_OPTIONS:-detect_leaks=0:halt_on_error=1:check_initialization_order=1}" \
+        "$source_dir/Code/Sanitizers/asan.supp")
+      export ASAN_OPTIONS
       ;;
     tsan)
-      export TSAN_OPTIONS="${TSAN_OPTIONS:-halt_on_error=1}"
+      TSAN_OPTIONS=$(with_default_suppressions \
+        "${TSAN_OPTIONS:-halt_on_error=1}" \
+        "$source_dir/Code/Sanitizers/tsan.supp")
+      export TSAN_OPTIONS
       ;;
     ubsan)
-      export UBSAN_OPTIONS="${UBSAN_OPTIONS:-halt_on_error=1:print_stacktrace=1}"
+      UBSAN_OPTIONS=$(with_default_suppressions \
+        "${UBSAN_OPTIONS:-halt_on_error=1:print_stacktrace=1}" \
+        "$source_dir/Code/Sanitizers/ubsan.supp")
+      export UBSAN_OPTIONS
       ;;
   esac
 
