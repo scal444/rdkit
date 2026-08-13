@@ -402,17 +402,27 @@ void addRecursiveQuery(ROMol &mol, const ROMol &query, unsigned int atomIdx,
 }
 
 void reapplyWedging(ROMol &mol, bool allBondTypes, bool verify) {
-  auto &wmol = static_cast<RWMol &>(mol);
-  RDKit::Chirality::reapplyMolBlockWedging(wmol, allBondTypes, verify);
+  if (auto *wmol = dynamic_cast<RWMol *>(&mol)) {
+    RDKit::Chirality::reapplyMolBlockWedging(*wmol, allBondTypes, verify);
+  } else {
+    RWMol wmol(mol);
+    RDKit::Chirality::reapplyMolBlockWedging(wmol, allBondTypes, verify);
+    mol = wmol;
+  }
 }
 
 MolOps::SanitizeFlags sanitizeMol(ROMol &mol, boost::uint64_t sanitizeOps,
                                   bool catchErrors) {
-  auto &wmol = static_cast<RWMol &>(mol);
+  auto *wmol = dynamic_cast<RWMol *>(&mol);
+  std::unique_ptr<RWMol> wmolCopy;
+  if (!wmol) {
+    wmolCopy = std::make_unique<RWMol>(mol);
+    wmol = wmolCopy.get();
+  }
   unsigned int operationThatFailed;
   if (catchErrors) {
     try {
-      MolOps::sanitizeMol(wmol, operationThatFailed, sanitizeOps);
+      MolOps::sanitizeMol(*wmol, operationThatFailed, sanitizeOps);
     } catch (const MolSanitizeException &) {
       // this really should not be necessary, but at some point it
       // started to be required with VC++17. Doesn't seem like it does
@@ -420,7 +430,10 @@ MolOps::SanitizeFlags sanitizeMol(ROMol &mol, boost::uint64_t sanitizeOps,
     } catch (...) {
     }
   } else {
-    MolOps::sanitizeMol(wmol, operationThatFailed, sanitizeOps);
+    MolOps::sanitizeMol(*wmol, operationThatFailed, sanitizeOps);
+  }
+  if (wmolCopy) {
+    mol = *wmolCopy;
   }
   return static_cast<MolOps::SanitizeFlags>(operationThatFailed);
 }
