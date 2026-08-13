@@ -111,7 +111,8 @@ template RDKIT_DATASTRUCTS_EXPORT void FromBitString(ExplicitBitVect &sbv,
 */
 void a2b(const char *a4, char *b3) {
   int i;
-  char byte = 0x00, b = 0x00;
+  unsigned char byte = 0x00, b = 0x00;
+  auto *ub3 = reinterpret_cast<unsigned char *>(b3);
 
   /*********************************************
   *** Use the Daylight mapping to convert each
@@ -330,18 +331,18 @@ void a2b(const char *a4, char *b3) {
     *********************************************/
     switch (i) {
       case 0:
-        b3[0] = (byte << 2); /*** 6 bits into 1st byte ***/
+        ub3[0] = (byte << 2); /*** 6 bits into 1st byte ***/
         break;
       case 1:
-        b3[0] |= ((b = byte) >> 4); /*** 2 bits into 1st byte ***/
-        b3[1] = ((b = byte) << 4);  /*** 4 bits into 2nd byte ***/
+        ub3[0] |= ((b = byte) >> 4); /*** 2 bits into 1st byte ***/
+        ub3[1] = ((b = byte) << 4);  /*** 4 bits into 2nd byte ***/
         break;
       case 2:
-        b3[1] |= ((b = byte) >> 2); /*** 4 bits into 2nd byte ***/
-        b3[2] = ((b = byte) << 6);  /*** 2 bits into 3rd byte ***/
+        ub3[1] |= ((b = byte) >> 2); /*** 4 bits into 2nd byte ***/
+        ub3[2] = ((b = byte) << 6);  /*** 2 bits into 3rd byte ***/
         break;
       case 3:
-        b3[2] |= byte; /*** 6 bits into 3rd byte ***/
+        ub3[2] |= byte; /*** 6 bits into 3rd byte ***/
         break;
     }
   }
