@@ -1,0 +1,15 @@
+# UndefinedBehaviorSanitizer suppressions for external, unbundled libraries.
+#
+# Keep this file empty until a report has been confirmed to originate in such a
+# library. Do not suppress undefined behavior caused by data, alignment, enum
+# values, or function pointers supplied by RDKit.
+#
+# Syntax reference:
+#   signed-integer-overflow:function_name_pattern
+#   alignment:library_name_pattern
+
+# Downloaded ChemDraw SDK source; not tracked or shipped by RDKit.
+signed-integer-overflow:CDXDocument::XMLStoreAttribute
+
+# Downloaded CoordGen source; not tracked or shipped by RDKit.
+signed-integer-overflow:sketcherMinimizer::canonicalOrdering

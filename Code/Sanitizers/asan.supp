@@ -1,0 +1,9 @@
+# AddressSanitizer suppressions for defects in external, unbundled libraries.
+#
+# Keep this file empty until a report has been confirmed to originate in such a
+# library. Do not suppress reports merely because an external header or runtime
+# appears at the top of the stack when RDKit supplied the invalid state.
+#
+# Syntax reference:
+#   interceptor_via_fun:function_name
+#   interceptor_via_lib:library_name_pattern
