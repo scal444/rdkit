@@ -1211,7 +1211,8 @@ unsigned int ConjElectrons::countTotalElectrons() {
        it != d_conjAtomMap.end(); ++it) {
     const Atom *a = it->second->atom();
     totalElectrons +=
-        it->second->oe() - static_cast<int>(a->getTotalValence()) -
+        static_cast<int>(it->second->oe()) -
+        static_cast<int>(a->getTotalValence()) -
         a->getFormalCharge();
   }
   CHECK_INVARIANT(totalElectrons >= 0, "negative conjugated electron count");
