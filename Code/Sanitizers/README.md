@@ -33,6 +33,10 @@ its stricter mode is deferred because shared-library initialization ordering can
 produce false positives there. The build instruments pointer comparisons and
 subtractions, and the runtime reports invalid pairs even when both pointers are
 null.
+UBSan additionally checks implicit integer truncation and sign changes. Its
+instrumentation remains recoverable so runtime suppressions can match confirmed
+external dependency defects; `halt_on_error=1` still stops at the first
+unsuppressed report.
 Override `ASAN_OPTIONS`,
 `TSAN_OPTIONS`, or `UBSAN_OPTIONS` in the shell when layering in more checks.
 LeakSanitizer is initially disabled because it cannot run under ptrace-based
