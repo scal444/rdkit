@@ -51,9 +51,9 @@ ROMol *renumberAtoms(const ROMol &mol,
       // FIX: ought to be able to avoid this copy.
       for (auto &val : nAtoms) {
         if (val < 0) {
-          val = -1 * (revOrder[(-val - 1)] + 1);
+          val = -static_cast<int>(revOrder[(-val - 1)] + 1);
         } else {
-          val = revOrder[val - 1] + 1;
+          val = static_cast<int>(revOrder[val - 1] + 1);
         }
       }
       nAtom->setProp(common_properties::_ringStereoAtoms, nAtoms, true);
