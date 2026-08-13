@@ -517,8 +517,8 @@ std::array<double, 3> ShapeInput::bestSimilarity(
     const ShapeInput &fitShape, unsigned int &bestThisShape,
     unsigned int &bestFitShape, RDGeom::Transform3D &bestXform,
     const double threshold, const ShapeOverlayOptions &overlayOpts) {
-  bestThisShape = -1;
-  bestFitShape = -1;
+  bestThisShape = std::numeric_limits<unsigned int>::max();
+  bestFitShape = std::numeric_limits<unsigned int>::max();
   std::array<double, 3> bestSim{-1.0, -1.0, -1.0};
   if (maxPossibleSimilarity(fitShape) < threshold) {
     return bestSim;
