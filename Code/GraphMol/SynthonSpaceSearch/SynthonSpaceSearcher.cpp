@@ -576,11 +576,11 @@ bool SynthonSpaceSearcher::quickVerify(
 
 void SynthonSpaceSearcher::updateBestHitSoFar(const ROMol &possBest,
                                               const double sim) {
-  if (sim > d_bestSimilarity) {
+  if (sim > d_bestSimilarity.load()) {
     std::unique_lock lock1{d_bestHitsMutex};
     // In case another thread changed it in the meantime.
-    if (sim > d_bestSimilarity) {
-      d_bestSimilarity = sim;
+    if (sim > d_bestSimilarity.load()) {
+      d_bestSimilarity.store(sim);
       d_bestHitFound.reset(new ROMol(possBest));
       d_bestHitFound->setProp<double>("Similarity", sim);
     }
