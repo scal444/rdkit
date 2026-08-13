@@ -8,7 +8,6 @@
 //  of the RDKit source tree.
 //
 #include <RDGeneral/export.h>
-#include <cstdint>
 #ifndef RD_CANON_H
 #define RD_CANON_H
 
@@ -91,7 +90,7 @@ class RDKIT_GRAPHMOL_EXPORT MolStackElem {
 typedef std::vector<MolStackElem> MolStack;
 
 //! used to represent possible branches from an atom
-typedef std::tuple<std::int64_t, int, Bond *> PossibleType;
+typedef std::tuple<int, int, Bond *> PossibleType;
 
 //! constructs the canonical traversal order for a molecular fragment
 /*!
