@@ -1390,7 +1390,7 @@ ResonanceMolSupplier::ResonanceMolSupplier(ROMol &mol, unsigned int flags,
   }
   d_maxStructs = std::min(maxStructs, MAX_STRUCTS);
   d_length = std::min(1U, d_maxStructs);
-  d_mol = new ROMol(mol);
+  d_mol = new RWMol(mol);
   // call here to avoid a race condition in threads
   MolOps::getDistanceMat(*d_mol);
   MolOps::Kekulize((RWMol &)*d_mol, false);
