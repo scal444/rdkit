@@ -8,8 +8,10 @@
 //  of the RDKit source tree.
 //
 
+#include <array>
 #include <ctime>
 #include <limits>
+#include <locale>
 #ifdef RDK_BUILD_THREADSAFE_SSS
 #include <future>
 #endif
@@ -324,6 +326,19 @@ vector<GaResult> RGroupGa::runBatch() {
 
   if (gaParallelRuns) {
 #ifdef RDK_BUILD_THREADSAFE_SSS
+    // boost::format uses std::ctype<char>::narrow() while parsing its format
+    // strings. Some standard library implementations lazily initialize the
+    // facet's narrow-character cache without synchronization, so initialize
+    // the complete cache before the parallel runs start.
+    std::array<char, 256> characters;
+    std::array<char, 256> narrowed;
+    for (size_t i = 0; i < characters.size(); ++i) {
+      characters[i] = static_cast<char>(i);
+    }
+    const auto &ctype = std::use_facet<std::ctype<char>>(std::locale());
+    ctype.narrow(characters.data(), characters.data() + characters.size(), 0,
+                 narrowed.data());
+
     vector<future<GaResult>> tasks;
     tasks.reserve(numberRuns);
     for (int n = 0; n < numberRuns; n++) {
