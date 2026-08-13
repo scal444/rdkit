@@ -487,7 +487,8 @@ bool isAtomCandForArom(const Atom *at, const ElectronDonorType edon,
   // the situation:
   //   C1=C=NC=N1 (sf.net bug 1934360)
   int nUnsaturations =
-      at->getValence(Atom::ValenceType::EXPLICIT) - at->getDegree();
+      static_cast<int>(at->getValence(Atom::ValenceType::EXPLICIT)) -
+      static_cast<int>(at->getDegree());
   if (nUnsaturations > 1) {
     unsigned int nMult = 0;
     const auto &mol = at->getOwningMol();
