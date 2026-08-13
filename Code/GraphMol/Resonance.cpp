@@ -213,8 +213,20 @@ class AtomElectrons {
   unsigned int neededNbForOctet() const { return (8 - (2 * d_tv + d_nb)); }
   const Atom *atom() { return d_atom; }
   void initTvNbFcFromAtom();
-  void assignNonBonded(unsigned int nb) { d_nb = nb; }
-  void assignFormalCharge() { d_fc = oe() - (d_nb + d_tv); }
+  void assignNonBonded(unsigned int nb) {
+    CHECK_INVARIANT(nb <= std::numeric_limits<std::uint8_t>::max(),
+                    "invalid non-bonded electron count");
+    d_nb = static_cast<std::uint8_t>(nb);
+  }
+  void assignFormalCharge() {
+    const auto formalCharge =
+        static_cast<int>(oe()) - (static_cast<int>(d_nb) + d_tv);
+    CHECK_INVARIANT(
+        formalCharge >= std::numeric_limits<std::int8_t>::min() &&
+            formalCharge <= std::numeric_limits<std::int8_t>::max(),
+        "invalid formal charge");
+    d_fc = static_cast<std::int8_t>(formalCharge);
+  }
   bool isNbrCharged(unsigned int bo, unsigned int oeConstraint = 0);
   AtomElectrons &operator=(const AtomElectrons &) = delete;
   AtomElectrons(const AtomElectrons &) = delete;
