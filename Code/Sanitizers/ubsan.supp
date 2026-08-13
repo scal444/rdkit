@@ -25,6 +25,11 @@ signed-integer-overflow:*sketcherMinimizer.cpp*
 
 # Conda-provided Boost 1.90 integer-range iterator implementation.
 implicit-integer-sign-change:*irange.hpp*
+implicit-signed-integer-truncation:*gzip.hpp*
+
+# Eigen's SSE absolute-value mask intentionally converts an all-ones unsigned
+# constant to a signed packet element.
+implicit-integer-sign-change:*PacketMath.h*
 
 # The Conda-provided libstdc++ shared_ptr implementation decrements its
 # reference count through a signed-to-unsigned conversion.
