@@ -52,7 +52,8 @@ LogStateSetter::LogStateSetter(RDLoggerList toEnable) : LogStateSetter() {
 LogStateSetter::~LogStateSetter() {
   for (auto i = 0u; i < allLogs.size(); ++i) {
     if (*allLogs[i]) {
-      (*allLogs[i])->df_enabled ^= d_origState >> i & 1;
+      (*allLogs[i])->df_enabled.store((*allLogs[i])->df_enabled.load() ^
+                                      (d_origState >> i & 1));
     }
   }
 }
