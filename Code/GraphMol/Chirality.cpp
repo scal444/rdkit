@@ -984,9 +984,9 @@ void buildCIPInvariants(const ROMol &mol, DOUBLE_VECT &res) {
     // get an int with the deviation in the mass from the default:
     int mass = 0;
     if (atom->getIsotope()) {
-      mass =
-          atom->getIsotope() -
-          PeriodicTable::getTable()->getMostCommonIsotope(atom->getAtomicNum());
+      mass = static_cast<int>(atom->getIsotope()) -
+             PeriodicTable::getTable()->getMostCommonIsotope(
+                 atom->getAtomicNum());
       if (mass >= 0) {
         mass += 1;
       }
