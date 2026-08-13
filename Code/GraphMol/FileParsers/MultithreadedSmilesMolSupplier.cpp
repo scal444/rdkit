@@ -77,10 +77,12 @@ bool MultithreadedSmilesMolSupplier::getEnd() const {
 void MultithreadedSmilesMolSupplier::processTitleLine() {
   PRECONDITION(dp_inStream, "bad stream");
   std::string tempStr = getLine(dp_inStream);
+  ++d_line;
   // loop until we get a valid line
   while (!dp_inStream->eof() && !dp_inStream->fail() &&
          ((tempStr[0] == '#') || (strip(tempStr).size() == 0))) {
     tempStr = getLine(dp_inStream);
+    ++d_line;
   }
   boost::char_separator<char> sep(d_parseParams.delimiter.c_str(), "",
                                   boost::keep_empty_tokens);
@@ -110,10 +112,12 @@ bool MultithreadedSmilesMolSupplier::extractNextRecord(std::string &record,
     }
   }
   std::string tempStr = getLine(dp_inStream);
+  ++d_line;
   record = "";
   while (!dp_inStream->eof() && !dp_inStream->fail() &&
          ((tempStr[0] == '#') || (strip(tempStr).size() == 0))) {
     tempStr = getLine(dp_inStream);
+    ++d_line;
   }
 
   record = tempStr;
