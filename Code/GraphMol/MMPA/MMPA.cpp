@@ -59,8 +59,8 @@ unsigned long long computeMorganCodeHash(const ROMol &mol) {
       unsigned order = bond->getBondType();
       unsigned atom1 = bond->getBeginAtomIdx();
       unsigned atom2 = bond->getEndAtomIdx();
-      unsigned v1 = prevCodes[atom1];
-      unsigned v2 = prevCodes[atom2];
+      auto v1 = prevCodes[atom1];
+      auto v2 = prevCodes[atom2];
 
       currCodes[atom1] += v2 * v2 + (v2 + 23) * (order + 1721);
       currCodes[atom2] += v1 * v1 + (v1 + 23) * (order + 1721);
