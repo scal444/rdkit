@@ -87,9 +87,12 @@ struct RDKIT_GRAPHMOL_EXPORT bondholder {
     } else if (x.bondStereo > y.bondStereo) {
       return 1;
     }
-    auto scdiv = x.nbrSymClass / div - y.nbrSymClass / div;
-    if (scdiv) {
-      return scdiv;
+    const auto xsc = x.nbrSymClass / div;
+    const auto ysc = y.nbrSymClass / div;
+    if (xsc < ysc) {
+      return -1;
+    } else if (xsc > ysc) {
+      return 1;
     }
     if (x.bondStereo && y.bondStereo) {
       auto cs = x.compareStereo(y);

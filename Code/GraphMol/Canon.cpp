@@ -884,7 +884,7 @@ void dfsFindCycles(ROMol &mol, int atomIdx, int inBondIdx,
     if (inBondIdx < 0 ||
         theBond->getIdx() != static_cast<unsigned int>(inBondIdx)) {
       int otherIdx = theBond->getOtherAtomIdx(atomIdx);
-      auto rank = ranks[otherIdx];
+      std::int64_t rank = ranks[otherIdx];
       // ---------------------
       //
       // things are a bit more complicated if we are sitting on a
@@ -1072,7 +1072,7 @@ void dfsBuildStack(ROMol &mol, int atomIdx, int inBondIdx,
         // ring closure or finished atom... skip it.
         continue;
       }
-      auto rank = ranks[otherIdx];
+      std::int64_t rank = ranks[otherIdx];
       if (!doRandom) {
         if (theBond->getOwningMol().getRingInfo()->numBondRings(
                 theBond->getIdx())) {
