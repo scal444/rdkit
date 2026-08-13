@@ -466,7 +466,7 @@ void doFinalFragmentation(
     unsigned int maxNumFrags, [[maybe_unused]] int numThreads,
     const TimePoint *endTime, bool &timedOut,
     std::vector<std::vector<std::shared_ptr<ROMol>>> &fragments) {
-  std::int64_t lastFrag = tmpFrags.size() - 1;
+  std::int64_t lastFrag = static_cast<std::int64_t>(tmpFrags.size()) - 1;
   std::atomic<std::int64_t> mostRecentFrag = -1;
   if (const auto numThreadsToUse = getNumThreadsToUse(numThreads);
       numThreads > 1) {
