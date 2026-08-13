@@ -14,7 +14,6 @@
 namespace RDKit {
 void _fillDistMat(unsigned int dmat[], unsigned int nBits) {
   unsigned int i, j, a, b, ta, tb, dist;
-  int temp;
   unsigned int mask = ((1 << nBits) - 1);
   for (i = 0; i < 256; ++i) {
     for (j = 0; j < 256; ++j) {
@@ -24,12 +23,7 @@ void _fillDistMat(unsigned int dmat[], unsigned int nBits) {
       while (a || b) {
         ta = a & mask;
         tb = b & mask;
-        temp = ta - tb;
-        if (temp > 0) {
-          dist += temp;
-        } else {
-          dist -= temp;
-        }
+        dist += ta > tb ? ta - tb : tb - ta;
         a >>= nBits;
         b >>= nBits;
       }
@@ -55,7 +49,6 @@ unsigned int DiscreteDistMat::getDist(
     unsigned char v1, unsigned char v2,
     DiscreteValueVect::DiscreteValueType type) {
   unsigned int res = 0;
-  int temp;
   unsigned int id =
       static_cast<unsigned int>(v1) * 256 + static_cast<unsigned int>(v2);
   switch (type) {
@@ -69,12 +62,7 @@ unsigned int DiscreteDistMat::getDist(
       res = d_fourBitTab[id];
       break;
     case DiscreteValueVect::EIGHTBITVALUE:
-      temp = static_cast<unsigned int>(v1) - static_cast<unsigned int>(v2);
-      if (temp < 0) {
-        res -= temp;
-      } else {
-        res += temp;
-      }
+      res = v1 > v2 ? v1 - v2 : v2 - v1;
       break;
     default:
       // ummm.. we shouldn't have come here
