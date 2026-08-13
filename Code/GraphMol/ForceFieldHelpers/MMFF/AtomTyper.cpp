@@ -2347,42 +2347,49 @@ MMFFMolProperties::MMFFMolProperties(ROMol &mol, const std::string &mmffVariant,
       d_verbosity(verbosity),
       d_oStream(&oStream),
       d_MMFFAtomPropertiesPtrVect(mol.getNumAtoms()) {
-  if (MolOps::needsHs(mol)) {
+  std::unique_ptr<RWMol> molCopy;
+  auto *rwMol = dynamic_cast<RWMol *>(&mol);
+  if (!rwMol) {
+    molCopy = std::make_unique<RWMol>(mol);
+    rwMol = molCopy.get();
+  }
+  auto &typedMol = *rwMol;
+  if (MolOps::needsHs(typedMol)) {
     BOOST_LOG(rdWarningLog)
         << "Molecule does not have explicit Hs. Consider calling AddHs()"
         << std::endl;
   }
-  if (!mol.hasProp(common_properties::_MMFFSanitized)) {
+  if (!typedMol.hasProp(common_properties::_MMFFSanitized)) {
     bool isAromaticSet = false;
-    for (const auto atom : mol.atoms()) {
+    for (const auto atom : typedMol.atoms()) {
       if (atom->getIsAromatic()) {
         isAromaticSet = true;
         break;
       }
     }
     if (isAromaticSet) {
-      MolOps::Kekulize((RWMol &)mol, true);
+      MolOps::Kekulize(typedMol, true);
     }
-    mol.setProp(common_properties::_MMFFSanitized, 1, true);
+    typedMol.setProp(common_properties::_MMFFSanitized, 1, true);
   }
-  for (unsigned int i = 0; i < mol.getNumAtoms(); ++i) {
+  for (unsigned int i = 0; i < typedMol.getNumAtoms(); ++i) {
     d_MMFFAtomPropertiesPtrVect[i] =
         MMFFAtomPropertiesPtr(new MMFFAtomProperties());
   }
-  MolOps::setMMFFAromaticity((RWMol &)mol);
-  RingMembershipSize rmSize(mol);
-  for (const auto atom : mol.atoms()) {
+  MolOps::setMMFFAromaticity(typedMol);
+  RingMembershipSize rmSize(typedMol);
+  for (const auto atom : typedMol.atoms()) {
     if (atom->getAtomicNum() != 1) {
       this->setMMFFHeavyAtomType(rmSize, atom);
     }
   }
-  for (const auto atom : mol.atoms()) {
+  for (const auto atom : typedMol.atoms()) {
     if (atom->getAtomicNum() == 1) {
       this->setMMFFHydrogenType(atom);
     }
   }
   if (this->isValid()) {
-    this->computeMMFFCharges(mol);
+    this->computeMMFFCharges(typedMol);
   }
   if (verbosity == MMFF_VERBOSITY_HIGH) {
     oStream << "\n"
@@ -2391,9 +2398,9 @@ MMFFMolProperties::MMFFMolProperties(ROMol &mol, const std::string &mmffVariant,
                " ATOM     TYPE    CHARGE    CHARGE\n"
                "-----------------------------------"
             << std::endl;
-    for (unsigned int idx = 0; idx < mol.getNumAtoms(); ++idx) {
+    for (unsigned int idx = 0; idx < typedMol.getNumAtoms(); ++idx) {
       oStream << std::left << std::setw(2)
-              << mol.getAtomWithIdx(idx)->getSymbol() << std::left << " #"
+              << typedMol.getAtomWithIdx(idx)->getSymbol() << std::left << " #"
               << std::setw(5) << idx + 1 << std::right << std::setw(5)
               << (unsigned int)(this->getMMFFAtomType(idx)) << std::right
               << std::setw(10) << std::fixed << std::setprecision(3)
