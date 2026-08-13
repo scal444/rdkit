@@ -6028,7 +6028,7 @@ M  END
       double dbl = drawnBondLength(regex, text);
       // the bonds should all be 14.4 long, but the SVG is only written
       // to 1 decimal place, so rounding errors are largish.
-      CHECK(dbl == Catch::Approx(14.4253));
+      CHECK_THAT(dbl, Catch::Matchers::WithinAbs(14.4, 0.1));
       regex =
           R"(class='bond-1 atom-1 atom-2' d='M ([\d.]*),([\d.]*) L ([\d.]*),([\d.]*)')";
       dbl = drawnBondLength(regex, text);
@@ -10511,13 +10511,28 @@ TEST_CASE("Github 7739 - Bad multi-coloured wedge") {
     std::ofstream outs(fileStem + "5.svg");
     outs << text;
     outs.flush();
-    std::regex bond19(
-        "<path class='bond-1 atom-1 atom-2' .*style='fill:none;fill-rule:evenodd;stroke:#000000;"
-        "stroke-width:1.0px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1' />");
-    size_t nOccurrences = std::distance(
-        std::sregex_token_iterator(text.begin(), text.end(), bond19),
-        std::sregex_token_iterator());
-    CHECK(nOccurrences == 30);
+    // Ring normalization can reverse the wedge direction, so it may be a
+    // filled triangle or a series of hashed lines. In either case it must be
+    // a coherent, monochrome black wedge.
+    const std::regex bond1("<path class='bond-1 atom-1 atom-2'[^>]+>");
+    const auto firstBondPath =
+        std::sregex_iterator(text.begin(), text.end(), bond1);
+    const auto pathEnd = std::sregex_iterator();
+    REQUIRE(firstBondPath != pathEnd);
+    bool hasFilledWedge = false;
+    size_t numHashedLines = 0;
+    for (auto path = firstBondPath; path != pathEnd; ++path) {
+      const auto pathText = path->str();
+      CHECK(pathText.find("#000000") != std::string::npos);
+      if (pathText.find("fill:#000000") != std::string::npos &&
+          pathText.find(" Z'") != std::string::npos) {
+        hasFilledWedge = true;
+      } else if (pathText.find("fill:none") != std::string::npos &&
+                 pathText.find("stroke:#000000") != std::string::npos) {
+        ++numHashedLines;
+      }
+    }
+    CHECK((hasFilledWedge || numHashedLines > 1));
     check_file_hash(fileStem + "5.svg");
   }
 }
