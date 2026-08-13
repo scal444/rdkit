@@ -329,6 +329,9 @@ std::map<std::string, std::vector<ROMol *>> mapFragsByAtoms(
         return atomsToFrags;
       }
       // Ring info is required.
+      if (!dynamic_cast<RWMol *>(frag.get())) {
+        frag = std::make_shared<RWMol>(*frag);
+      }
       unsigned int otf;
       sanitizeMol(*static_cast<RWMol *>(frag.get()), otf,
                   MolOps::SANITIZE_SYMMRINGS);
