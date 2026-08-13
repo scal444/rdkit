@@ -55,7 +55,9 @@ unsigned int twoBitCellPos(unsigned int nAtoms, int i, int j) {
     std::swap(i, j);
   }
 
-  return i * (nAtoms - 1) + i * (1 - i) / 2 + j;
+  const auto pos = static_cast<std::int64_t>(i) * (nAtoms - 1) +
+                   static_cast<std::int64_t>(i) * (1 - i) / 2 + j;
+  return static_cast<unsigned int>(pos);
 }
 
 void setTwoBitCell(boost::shared_array<std::uint8_t> &res, unsigned int pos,
