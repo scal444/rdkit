@@ -72,7 +72,7 @@ void DiscreteValueVect::setVal(unsigned int i, unsigned int val) {
   }
   unsigned int shift = d_bitsPerVal * (i % d_valsPerInt);
   unsigned int intId = i / d_valsPerInt;
-  unsigned int mask = ((1 << d_bitsPerVal) - 1) << shift;
+  unsigned int mask = ((1u << d_bitsPerVal) - 1) << shift;
   mask = ~mask;
   d_data[intId] = (d_data[intId] & mask) | (val << shift);
 }

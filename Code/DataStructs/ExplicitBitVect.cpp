@@ -223,16 +223,18 @@ std::string ExplicitBitVect::toString() const {
   tInt = getNumOnBits();
   RDKit::streamWrite(ss, tInt);
 
-  int prev = -1;
+  unsigned int prev = 0;
+  bool first = true;
   unsigned int zeroes;
   for (unsigned int i = 0; i < d_size; i++) {
     if ((bool)(*dp_bits)[i]) {
-      zeroes = i - prev - 1;
+      zeroes = first ? i : i - prev - 1;
       RDKit::appendPackedIntToStream(ss, zeroes);
       prev = i;
+      first = false;
     }
   }
-  zeroes = d_size - prev - 1;
+  zeroes = first ? d_size : d_size - prev - 1;
   RDKit::appendPackedIntToStream(ss, zeroes);
   std::string res(ss.str());
   return res;
