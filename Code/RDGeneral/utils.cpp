@@ -15,9 +15,9 @@
 #include "versions.h"
 
 namespace RDKit {
-static rng_type generator(42u);
-uniform_double dist(0.0, 1.0);
-static double_source_type dbRandSource(generator, dist);
+static thread_local rng_type generator(42u);
+static thread_local uniform_double dist(0.0, 1.0);
+static thread_local double_source_type dbRandSource(generator, dist);
 
 double_source_type &getDoubleRandomSource() { return dbRandSource; };
 
