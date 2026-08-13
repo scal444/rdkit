@@ -8,8 +8,11 @@
 //  of the RDKit source tree.
 //
 
+#include <algorithm>
 #include <chrono>
 #include <memory>
+#include <sstream>
+#include <vector>
 
 #include <GraphMol/Fingerprints/MorganFingerprints.h>
 #include <GraphMol/SmilesParse/SmilesWrite.h>
@@ -467,6 +470,21 @@ void testThrowSmiles() {
   TEST_ASSERT(ok);
 }
 
+void testSmilesLineNumbersWithoutNameColumn() {
+  auto *input = new std::istringstream("# comment\n\nCC\nCCC\n");
+  MultithreadedSmilesMolSupplier supplier(input, true, " ", 0, -1, false,
+                                           true, 2);
+  std::vector<std::string> names;
+  while (!supplier.atEnd()) {
+    std::unique_ptr<ROMol> mol(supplier.next());
+    if (mol) {
+      names.push_back(mol->getProp<std::string>("_Name"));
+    }
+  }
+  std::sort(names.begin(), names.end());
+  TEST_ASSERT(names == std::vector<std::string>({"2", "3"}));
+}
+
 int main() {
   RDLog::InitLogs();
 
@@ -491,6 +509,8 @@ int main() {
   testThrowSmiles();
   BOOST_LOG(rdErrorLog) << "Finished: testThrowSmiles()\n";
   BOOST_LOG(rdErrorLog) << "-----------------------------------------\n\n";
+
+  testSmilesLineNumbersWithoutNameColumn();
 
   /*
     BOOST_LOG(rdErrorLog) << "\n-----------------------------------------\n";
