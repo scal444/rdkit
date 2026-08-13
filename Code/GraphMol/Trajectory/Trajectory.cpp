@@ -94,7 +94,7 @@ unsigned int Trajectory::addConformersToMol(ROMol &mol, int from, int to) {
     from = 0;
   }
   if (to < 0) {
-    to = size() - 1;
+    to = size() ? static_cast<int>(size() - 1) : -1;
   }
   PRECONDITION(!size() || (from <= to), "from must be <= to");
   int n;
