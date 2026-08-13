@@ -644,7 +644,7 @@ std::vector<std::vector<std::shared_ptr<ROMol>>> splitMolecule(
   // for a single synthon set.
   fragments.resize(tmpFrags.size() + 1);
   fragments.emplace_back();
-  fragments.back().emplace_back(new ROMol(query));
+  fragments.back().emplace_back(new RWMol(query));
   // And now split the molecules into the final fragments.
   doFinalFragmentation(tmpFrags, maxNumFrags, numThreads, endTime, timedOut,
                        fragments);

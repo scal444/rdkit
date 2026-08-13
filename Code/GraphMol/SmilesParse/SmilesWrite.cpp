@@ -868,7 +868,7 @@ std::string MolFragmentToSmiles(const ROMol &mol,
   }
   int rootedAtAtom = params.rootedAtAtom;
 
-  ROMol tmol(mol, true);
+  RWMol tmol(mol, true);
   if (params.doIsomericSmiles) {
     tmol.setProp(common_properties::_doIsoSmiles, 1);
   }
