@@ -884,7 +884,7 @@ void dfsFindCycles(ROMol &mol, int atomIdx, int inBondIdx,
     if (inBondIdx < 0 ||
         theBond->getIdx() != static_cast<unsigned int>(inBondIdx)) {
       int otherIdx = theBond->getOtherAtomIdx(atomIdx);
-      std::int64_t rank = ranks[otherIdx];
+      auto rank = ranks[otherIdx];
       // ---------------------
       //
       // things are a bit more complicated if we are sitting on a
@@ -936,7 +936,7 @@ void dfsFindCycles(ROMol &mol, int atomIdx, int inBondIdx,
       // std::cerr<<"aIdx: "<< atomIdx <<"   p: "<<otherIdx<<" Rank:
       // "<<ranks[otherIdx] <<" "<<colors[otherIdx]<<"
       // "<<theBond->getBondType()<<" "<<rank<<std::endl;
-      possibles.emplace_back(rank, otherIdx, theBond);
+      possibles.emplace_back(static_cast<int>(rank), otherIdx, theBond);
     }
   }
 
@@ -1072,7 +1072,7 @@ void dfsBuildStack(ROMol &mol, int atomIdx, int inBondIdx,
         // ring closure or finished atom... skip it.
         continue;
       }
-      std::int64_t rank = ranks[otherIdx];
+      auto rank = ranks[otherIdx];
       if (!doRandom) {
         if (theBond->getOwningMol().getRingInfo()->numBondRings(
                 theBond->getIdx())) {
@@ -1090,7 +1090,7 @@ void dfsBuildStack(ROMol &mol, int atomIdx, int inBondIdx,
         rank = getRandomGenerator()();
       }
 
-      possibles.emplace_back(rank, otherIdx, theBond);
+      possibles.emplace_back(static_cast<int>(rank), otherIdx, theBond);
     }
   }
 
