@@ -164,9 +164,9 @@ int lapMaximize(const std::vector<std::vector<int>> &costsMat,
   std::vector<double> u(nr, 0);
   std::vector<double> v(nc, 0);
   std::vector<double> shortestPathCosts(nc);
-  std::vector<size_t> path(nc, -1);
-  std::vector<size_t> col4row(nr, -1);
-  std::vector<size_t> row4col(nc, -1);
+  std::vector<size_t> path(nc, std::numeric_limits<size_t>::max());
+  std::vector<size_t> col4row(nr, std::numeric_limits<size_t>::max());
+  std::vector<size_t> row4col(nc, std::numeric_limits<size_t>::max());
   std::vector<bool> SR(nr);
   std::vector<bool> SC(nc);
   std::vector<size_t> remaining(nc);
