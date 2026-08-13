@@ -549,7 +549,7 @@ TEST_CASE("RDKit fingerprinter and ignoreAtoms") {
   std::vector<int> obl;
   fp2->getOnBits(obl);
   REQUIRE(obl.size() == 1);
-  CHECK((*fp1)[obl[0]] == 1);
+  CHECK((*fp1)[static_cast<unsigned int>(obl[0])] == 1);
   // make sure we continue to ignore the atoms even if they are fromAtoms
   funcArgs.fromAtoms = &ignoreAtoms;
   auto fp3 = fpg->getSparseFingerprint(*mol, funcArgs);
