@@ -45,3 +45,7 @@ implicit-integer-sign-change:*string_view*
 # unsigned shifts.
 shift-base:*mersenne_twister.hpp*
 shift-base:*crc.hpp*
+
+# Conda libstdc++'s 32-bit mersenne_twister specialization is backed by an
+# unsigned-long state array and triggers Clang's local array bounds check.
+local-bounds:*random.tcc*
