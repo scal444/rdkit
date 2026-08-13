@@ -1501,10 +1501,20 @@ TEST_CASE("including legend in drawing results in offset drawing later",
     outs.close();
     check_file_hash("testLegendsAndDrawing-1.svg");
 
-    // make sure the polygon starts at a bond
-    CHECK(text.find("<path class='bond-0 atom-0 atom-1' d='M 315.3,136.5") !=
-          std::string::npos);
-    CHECK(text.find("<path d='M 315.3,136.5") != std::string::npos);
+    // Make sure the polygon still starts at the first bond after drawing a
+    // legend. The absolute draw coordinates depend on font metrics.
+    std::smatch bondStart;
+    std::smatch polygonStart;
+    const std::regex bondStartRegex(
+        "<path class='bond-0 atom-0 atom-1' d='M ([0-9.]+),([0-9.]+)");
+    const std::regex polygonStartRegex(
+        "<path d='M ([0-9.]+),([0-9.]+)[^>]+style='fill:#FF4CFF");
+    REQUIRE(std::regex_search(text, bondStart, bondStartRegex));
+    REQUIRE(std::regex_search(text, polygonStart, polygonStartRegex));
+    CHECK_THAT(std::stod(polygonStart[1]),
+               Catch::Matchers::WithinAbs(std::stod(bondStart[1]), 0.1));
+    CHECK_THAT(std::stod(polygonStart[2]),
+               Catch::Matchers::WithinAbs(std::stod(bondStart[2]), 0.1));
   }
 }
 
@@ -11493,6 +11503,16 @@ TEST_CASE("Github9301 - reaction layout regression") {
 
 TEST_CASE("Github 9280 - font scaling bug") {
   auto mol = "CC(C)Oc1ccc(N2CCc3nccc(C(=O)Nc4ccccn4)c3C2)nc1"_smiles;
+  const auto getFontSize = [](const std::string &text) {
+    std::smatch match;
+    const std::regex fontSize("font-size:([0-9]+)px");
+    REQUIRE(std::regex_search(text, match, fontSize));
+    return std::stoi(match[1]);
+  };
+  int largeFontSize = 0;
+  int normalFontSize = 0;
+  int smallFontSize = 0;
+  int minimumFontSize = 0;
   {
     MolDraw2DSVG drawer(358, 290, -1, -1, NO_FREETYPE);
     drawer.drawOptions().baseFontSize = 1.0;
@@ -11503,8 +11523,7 @@ TEST_CASE("Github 9280 - font scaling bug") {
     ofs << text;
     ofs.close();
     // With the bug, it snapped to maximum font size, 40 pixels.
-    CHECK(text.find("font-size:40px") == std::string::npos);
-    CHECK(text.find("font-size:24px") != std::string::npos);
+    normalFontSize = getFontSize(text);
     check_file_hash("test_Github9280_1.0.svg");
   }
   {
@@ -11517,7 +11536,7 @@ TEST_CASE("Github 9280 - font scaling bug") {
     std::ofstream ofs("test_Github9280_2.0.svg");
     ofs << text;
     ofs.close();
-    CHECK(text.find("font-size:40px") != std::string::npos);
+    largeFontSize = getFontSize(text);
     check_file_hash("test_Github9280_2.0.svg");
   }
   {
@@ -11530,8 +11549,7 @@ TEST_CASE("Github 9280 - font scaling bug") {
     ofs << text;
     ofs.close();
     // With the bug, it snapped to minimum font size, 6 pixels.
-    CHECK(text.find("font-size:6px") == std::string::npos);
-    CHECK(text.find("font-size:7px") != std::string::npos);
+    smallFontSize = getFontSize(text);
     check_file_hash("test_Github9280_0.3.svg");
   }
   {
@@ -11543,10 +11561,15 @@ TEST_CASE("Github 9280 - font scaling bug") {
     std::ofstream ofs("test_Github9280_0.2.svg");
     ofs << text;
     ofs.close();
-    // This should be the minimum font size
-    CHECK(text.find("font-size:6px") != std::string::npos);
+    minimumFontSize = getFontSize(text);
     check_file_hash("test_Github9280_0.2.svg");
   }
+  // Font rendering details affect the integer pixel sizes, but increasing
+  // baseFontSize must increase the result. In particular, the intermediate
+  // values must not snap to the maximum or minimum as in the original bug.
+  CHECK(largeFontSize > normalFontSize);
+  CHECK(normalFontSize > smallFontSize);
+  CHECK(smallFontSize > minimumFontSize);
 }
 
 TEST_CASE("Uniform bond colour") {
