@@ -90,10 +90,7 @@ static int augmentingPath(size_t nc, std::vector<int> &cost,
   // find shortest augmenting path
   int sink = -1;
   while (sink == -1) {
-    // Clearly this will produce an overflow and set index to a large integer.
-    // It is how the original code did it, and I assume whoever wrote it knew
-    // what they were doing.
-    size_t index = -1;
+    size_t index = std::numeric_limits<size_t>::max();
     double lowest = std::numeric_limits<double>::max();
     SR[i] = true;
 
