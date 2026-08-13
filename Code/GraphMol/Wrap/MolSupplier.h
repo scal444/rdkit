@@ -70,7 +70,7 @@ template <typename T>
 ROMol *MolSupplGetItem(T *suppl, int idx) {
   ROMol *res = nullptr;
   if (idx < 0) {
-    idx = suppl->length() + idx;
+    idx = static_cast<int>(suppl->length()) + idx;
     if (idx < 0) {
       PyErr_SetString(PyExc_IndexError, "invalid index");
       throw boost::python::error_already_set();
