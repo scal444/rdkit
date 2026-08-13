@@ -364,7 +364,7 @@ int calculateExplicitValence(const Atom &atom, bool strict, bool checkIt) {
   if (ovalens.size() > 1 || ovalens[0] != -1) {
     effectiveAtomicNum = getEffectiveAtomicNum(atom, checkIt);
   }
-  unsigned int dv = periodicTable->getDefaultValence(effectiveAtomicNum);
+  int dv = periodicTable->getDefaultValence(effectiveAtomicNum);
   const auto &valens = periodicTable->getValenceList(effectiveAtomicNum);
   if (accum > dv && isAromaticAtom(atom)) {
     // this needs some explanation : if the atom is aromatic and
