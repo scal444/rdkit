@@ -334,7 +334,7 @@ int scoreHeteroHs(const ROMol &mol) {
   for (const auto &at : mol.atoms()) {
     int anum = at->getAtomicNum();
     if (anum == 15 || anum == 16 || anum == 34 || anum == 52) {
-      score -= at->getTotalNumHs();
+      score -= static_cast<int>(at->getTotalNumHs());
     }
   }
   return score;
