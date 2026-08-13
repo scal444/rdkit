@@ -997,8 +997,10 @@ void ConjElectrons::computeMetrics() {
        it != d_conjAtomMap.end(); ++it) {
     d_ceMetrics.d_absFormalCharges += abs(it->second->fc());
     size_t anIdx = it->second->atom()->getAtomicNum();
+    const auto electronegativity =
+        anIdx >= en.size() ? 1000 : static_cast<int>(en[anIdx]);
     d_ceMetrics.d_wtdFormalCharges +=
-        (it->second->fc() * ((anIdx >= en.size()) ? 1000 : en[anIdx]));
+        it->second->fc() * electronegativity;
     d_ceMetrics.d_nbMissing += it->second->neededNbForOctet();
   }
   computeDistFormalCharges();
