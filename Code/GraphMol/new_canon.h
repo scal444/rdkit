@@ -193,10 +193,10 @@ class RDKIT_GRAPHMOL_EXPORT SpecialChiralityAtomCompareFunctor {
     }
 
     for (unsigned int ii = 0; ii < swapsi.size() && ii < swapsj.size(); ++ii) {
-      int cmp = swapsi[ii].second - swapsj[ii].second;
-
-      if (cmp) {
-        return cmp;
+      if (swapsi[ii].second < swapsj[ii].second) {
+        return -1;
+      } else if (swapsi[ii].second > swapsj[ii].second) {
+        return 1;
       }
     }
 
