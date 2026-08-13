@@ -160,7 +160,7 @@ ROMol *Normalizer::normalize(const ROMol &mol) {
 
   PRECONDITION(tparams, "");
   if (!mol.getNumAtoms()) {
-    return new ROMol(mol);
+    return new RWMol(mol);
   }
   const std::vector<std::shared_ptr<ChemicalReaction>> &transforms =
       tparams->getTransformations();
@@ -172,12 +172,12 @@ ROMol *Normalizer::normalize(const ROMol &mol) {
     ROMOL_SPTR nfrag(this->normalizeFragment(*frag, transforms));
     nfrags.push_back(nfrag);
   }
-  auto *outmol = new ROMol(*(nfrags.back()));
+  auto *outmol = new RWMol(*(nfrags.back()));
   nfrags.pop_back();
   for (const auto &nfrag : nfrags) {
-    ROMol *tmol = combineMols(*outmol, *nfrag);
+    std::unique_ptr<ROMol> tmol(combineMols(*outmol, *nfrag));
     delete outmol;
-    outmol = tmol;
+    outmol = new RWMol(*tmol);
     //		delete nfrag;
   }
   return outmol;

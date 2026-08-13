@@ -878,7 +878,7 @@ ROMol *TautomerEnumerator::pickCanonical(
       }
     }
   }
-  ROMol *res = new ROMol(*bestMol);
+  ROMol *res = new RWMol(*bestMol);
   static const bool cleanIt = true;
   static const bool force = true;
   MolOps::assignStereochemistry(*res, cleanIt, force);
@@ -894,7 +894,7 @@ ROMol *TautomerEnumerator::canonicalize(
   if (res.empty()) {
     BOOST_LOG(rdWarningLog)
         << "no tautomers found, returning input molecule" << std::endl;
-    return new ROMol(mol);
+    return new RWMol(mol);
   }
   // When no custom scorer provided, use optimized scoring that pre-filters
   // SubstructTerm patterns once for the input molecule rather than evaluating
