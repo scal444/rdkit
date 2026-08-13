@@ -955,7 +955,7 @@ ROMol *replaceCoreHelper(const ROMol &mol, const ROMol &core,
   for (unsigned int i = 0; i < length; ++i) {
     // This is what boost::python::len() does internally
     auto pyObj = static_cast<python::object>(match[i]).ptr();
-    unsigned int sz = PyObject_Length(pyObj);
+    auto sz = PyObject_Length(pyObj);
     if (PyErr_Occurred()) {
       PyErr_Clear();
       sz = 1;
@@ -1076,7 +1076,7 @@ void _testSetProps(RDProps &props, const std::string &prefix) {
   svuint.push_back(0);
   svuint.push_back(1);
   svuint.push_back(2);
-  svuint.push_back(-2);
+  svuint.push_back(static_cast<unsigned int>(-2));
 
   props.setProp<std::vector<unsigned int>>(prefix + "svuint", svuint);
 
