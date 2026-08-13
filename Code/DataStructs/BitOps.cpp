@@ -736,12 +736,12 @@ std::string BitVectToBinaryText(const T1 &bv1) {
       c |= 1 << (i % 8);
     }
     if (!((i + 1) % 8)) {
-      res[byte++] = c;
+      res[byte++] = static_cast<char>(c);
       c = 0;
     }
   }
   if (bv1.getNumBits() % 8) {
-    res[byte] = c;
+    res[byte] = static_cast<char>(c);
   }
   return res;
 }
