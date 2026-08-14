@@ -38,8 +38,10 @@
 #include <GraphMol/MolAlign/AlignMolecules.h>
 #include <boost/dynamic_bitset.hpp>
 #include <RDGeneral/RDThreads.h>
+#include <atomic>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 #include <vector>
 #include <chrono>  // for time-related functions
@@ -68,6 +70,20 @@ constexpr double MAX_MINIMIZED_E_PER_ATOM = 0.05;
 constexpr double MAX_MINIMIZED_E_PER_ATOM_AIO = 0.1;
 constexpr double MIN_TETRAHEDRAL_CHIRAL_VOL = 0.50;
 constexpr double TETRAHEDRAL_CENTERINVOLUME_TOL = 0.30;
+
+int nextEmbeddingSeed() {
+  // Unseeded embedding historically consumed a process-global deterministic
+  // stream. Allocate one seed per invocation instead, then derive conformer
+  // seeds from it. This keeps sequential workloads reproducible and removes
+  // the shared generator from worker hot paths.
+  static std::atomic<std::uint32_t> nextSeed{42u};
+  constexpr std::uint32_t increment = 0x9e3779b9u;
+  constexpr std::uint32_t positiveIntMask = 0x7fffffffu;
+  return static_cast<int>(
+      nextSeed.fetch_add(increment, std::memory_order_relaxed) &
+      positiveIntMask);
+}
+
 inline bool haveOppositeSign(double a, double b) {
   return std::signbit(a) ^ std::signbit(b);
 }
@@ -168,6 +184,7 @@ struct EmbedArgs {
       *stereoDoubleBonds;
   ForceFields::CrystalFF::CrystalFFDetails *etkdgDetails;
   std::size_t hac;
+  int randomSeed;
 };
 
 }  // namespace detail
@@ -1590,15 +1607,15 @@ void embedHelper_(int threadId, int numThreads, EmbedArgs *eargs,
     CHECK_INVARIANT(
         params->randomSeed >= -1,
         "random seed must either be positive, zero, or negative one");
-    int new_seed = params->randomSeed;
+    int new_seed = eargs->randomSeed;
     if (new_seed > -1) {
       if (params->enableSequentialRandomSeeds) {
         new_seed += ci + 1;
       } else {
         if (!multiplication_overflows_(rdcast<int>(ci + 1),
-                                       params->randomSeed)) {
+                                       eargs->randomSeed)) {
           // old method of computing a new seed
-          new_seed = (ci + 1) * params->randomSeed;
+          new_seed = (ci + 1) * eargs->randomSeed;
         } else {
           // If the above simple multiplication will overflow, use a
           // cheap and easy way to hash the conformer index and seed
@@ -1606,7 +1623,7 @@ void embedHelper_(int threadId, int numThreads, EmbedArgs *eargs,
           // maximum possible value of the pair of numbers. The
           // following will generate unique integers:
           // hash(a, b) = a + b * N
-          auto big_seed = rdcast<size_t>(params->randomSeed);
+          auto big_seed = rdcast<size_t>(eargs->randomSeed);
           size_t max_val = std::max(ci + 1, big_seed);
           size_t big_num = big_seed + max_val * (ci + 1);
           // only grab the first 31 bits xor'd with the next 31 bits to
@@ -1724,6 +1741,9 @@ void EmbedMultipleConfs(ROMol &mol, INT_VECT &res, unsigned int numConfs,
         "Only version 1 and 2 of the experimental "
         "torsion-angle preferences (ETversion) supported");
   }
+
+  const int randomSeed =
+      params.randomSeed < 0 ? nextEmbeddingSeed() : params.randomSeed;
 
   if (MolOps::needsHs(mol)) {
     BOOST_LOG(rdWarningLog)
@@ -1855,12 +1875,14 @@ void EmbedMultipleConfs(ROMol &mol, INT_VECT &res, unsigned int numConfs,
     ControlCHandler hdlr;
 
     // do the embedding, using multiple threads if requested
-    detail::EmbedArgs eargs = {&confsOk,        fourD,
-                               &fragMapping,    &confs,
-                               fragIdx,         mmat,
-                               &chiralCenters,  &tetrahedralCarbons,
-                               &doubleBondEnds, &stereoDoubleBonds,
-                               &etkdgDetails,   piece->getNumHeavyAtoms()};
+    detail::EmbedArgs eargs = {
+        &confsOk,        fourD,
+        &fragMapping,    &confs,
+        fragIdx,         mmat,
+        &chiralCenters,  &tetrahedralCarbons,
+        &doubleBondEnds, &stereoDoubleBonds,
+        &etkdgDetails,   piece->getNumHeavyAtoms(),
+        randomSeed};
     if (numThreads == 1) {
       detail::embedHelper_(0, 1, &eargs, &params, end_time);
     }

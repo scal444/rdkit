@@ -809,12 +809,16 @@ TEST_CASE("tracking failure causes") {
     ps.randomSeed = 42;
     ps.useLegacyImplementation = legacyETKDG;
     auto cids = DGeomHelpers::EmbedMultipleConfs(*mol, 20, ps);
+    RWMol singleThreadResult(*mol);
 
     DGeomHelpers::EmbedParameters ps2 = ps;
     ps2.numThreads = 4;
 
     auto cids2 = DGeomHelpers::EmbedMultipleConfs(*mol, 20, ps2);
     CHECK(cids2 == cids);
+    for (const auto cid : cids) {
+      compareConfs(&singleThreadResult, mol.get(), cid, cid);
+    }
 
     CHECK(ps.failures == ps2.failures);
   }
