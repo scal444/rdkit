@@ -15,6 +15,10 @@
 #include <random>
 #include "export.h"
 
+namespace GapeGa {
+class GaBase;
+}
+
 namespace GarethUtil {
 
 /*
@@ -48,6 +52,7 @@ class GA_EXPORT RandomUtil {
   static RandomUtil &getInstance();
 
  private:
+  friend class GapeGa::GaBase;
   RandomUtil();
   virtual ~RandomUtil();
 

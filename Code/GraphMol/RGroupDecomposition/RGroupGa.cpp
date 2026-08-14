@@ -24,6 +24,14 @@
 
 namespace RDKit {
 
+namespace {
+std::uint32_t seedForRun(const std::uint32_t baseSeed, const int runNumber) {
+  constexpr std::uint32_t goldenRatio = 0x9e3779b9u;
+  const auto runIndex = static_cast<std::uint32_t>(std::max(1, runNumber) - 1);
+  return baseSeed + goldenRatio * runIndex;
+}
+}  // namespace
+
 RGroupDecompositionChromosome::RGroupDecompositionChromosome(RGroupGa &rGroupGa)
     : IntegerStringChromosome(rGroupGa.chromosomeLength(), rGroupGa.getRng(),
                               rGroupGa.getChromosomePolicy()),
@@ -142,22 +150,6 @@ RGroupGa::RGroupGa(const RGroupDecompData &rGroupData,
   }
 
   setPopsize(popsize);
-
-  uint32_t rngSeed;
-
-  if (params.gaRandomSeed >= 0) {
-    rngSeed = params.gaRandomSeed;
-    getRng().seed(rngSeed);
-  } else if (params.gaRandomSeed == -2) {
-    random_device rd;
-    auto seed = rd();
-    rngSeed = seed;
-    getRng().seed(rngSeed);
-  } else {
-    rngSeed = mt19937::default_seed;
-  }
-
-  BOOST_LOG(rdInfoLog) << "GA RNG seed " << rngSeed << endl;
 }
 
 void RGroupGa::rGroupMutateOperation(
@@ -253,6 +245,20 @@ std::string timeInfo(const std::clock_t start) {
 }
 
 GaResult RGroupGa::run(int runNumber) {
+  const auto configuredSeed = rGroupData.params.gaRandomSeed;
+  std::uint32_t baseSeed;
+  if (configuredSeed >= 0) {
+    baseSeed = configuredSeed;
+  } else if (configuredSeed == -2) {
+    std::random_device rd;
+    baseSeed = rd();
+  } else {
+    baseSeed = std::mt19937::default_seed;
+  }
+  const auto runSeed = seedForRun(baseSeed, runNumber);
+  getRng().seed(runSeed);
+  BOOST_LOG(rdInfoLog) << "GA RNG seed " << runSeed << endl;
+
   auto startTime = clock();
   RGroupGaPopulation population{*this};
   auto format =
@@ -327,7 +333,10 @@ vector<GaResult> RGroupGa::runBatch() {
     vector<future<GaResult>> tasks;
     tasks.reserve(numberRuns);
     for (int n = 0; n < numberRuns; n++) {
-      auto future = async(launch::async, &RDKit::RGroupGa::run, this, n + 1);
+      auto future = async(launch::async, [this, n]() {
+        RGroupGa runGa(rGroupData, t0);
+        return runGa.run(n + 1);
+      });
       tasks.push_back(std::move(future));
     }
 
