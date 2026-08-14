@@ -108,7 +108,9 @@ class SynthonSpaceSearcher {
   // If the similarity found is greater than d_bestSimilarity, replace
   // d_bestHitFound with a copy of possBest and update d_bestSimilarity.
   void updateBestHitSoFar(const ROMol &possBest, double sim);
-  double getBestSimilaritySoFar() const { return d_bestSimilarity; }
+  double getBestSimilaritySoFar() const {
+    return d_bestSimilarity.load(std::memory_order_relaxed);
+  }
 
   void makeHitsFromToTry(
       const std::vector<
@@ -128,7 +130,7 @@ class SynthonSpaceSearcher {
   const SynthonSpaceSearchParams d_params;
   SynthonSpace *d_space;
   std::unique_ptr<ROMol> d_bestHitFound;
-  double d_bestSimilarity{0.0};
+  std::atomic<double> d_bestSimilarity{0.0};
 
   // This for updating d_bestHitFound and d_bestSimilarity
   std::mutex d_bestHitsMutex;
