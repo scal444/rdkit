@@ -40,6 +40,7 @@
 #include <RDGeneral/RDThreads.h>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 #include <vector>
 #include <chrono>  // for time-related functions
@@ -154,7 +155,7 @@ const EmbedParameters srETKDGv3{.useExpTorsionAnglePrefs = true,
 
 namespace detail {
 struct EmbedArgs {
-  boost::dynamic_bitset<> *confsOk;
+  std::vector<std::uint8_t> *confsOk;
   bool fourD;
   INT_VECT *fragMapping;
   std::vector<std::unique_ptr<Conformer>> *confs;
@@ -1742,8 +1743,7 @@ void EmbedMultipleConfs(ROMol &mol, INT_VECT &res, unsigned int numConfs,
     confs.emplace_back(new Conformer(mol.getNumAtoms()));
   }
 
-  boost::dynamic_bitset<> confsOk(numConfs);
-  confsOk.set();
+  std::vector<std::uint8_t> confsOk(numConfs, 1);
 
   INT_VECT fragMapping;
   std::vector<ROMOL_SPTR> molFrags;
