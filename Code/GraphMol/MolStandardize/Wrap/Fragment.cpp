@@ -22,7 +22,13 @@ ROMol *removeHelper(MolStandardize::FragmentRemover &self, const ROMol &mol) {
 }
 
 void removeInPlaceHelper(MolStandardize::FragmentRemover &self, ROMol &mol) {
-  self.removeInPlace(static_cast<RWMol &>(mol));
+  if (auto *wmol = dynamic_cast<RWMol *>(&mol)) {
+    self.removeInPlace(*wmol);
+  } else {
+    RWMol molCopy(mol);
+    self.removeInPlace(molCopy);
+    mol = std::move(static_cast<ROMol &>(molCopy));
+  }
 }
 
 ROMol *chooseHelper(MolStandardize::LargestFragmentChooser &self,
@@ -32,7 +38,13 @@ ROMol *chooseHelper(MolStandardize::LargestFragmentChooser &self,
 
 void chooseInPlaceHelper(MolStandardize::LargestFragmentChooser &self,
                          ROMol &mol) {
-  self.chooseInPlace(static_cast<RWMol &>(mol));
+  if (auto *wmol = dynamic_cast<RWMol *>(&mol)) {
+    self.chooseInPlace(*wmol);
+  } else {
+    RWMol molCopy(mol);
+    self.chooseInPlace(molCopy);
+    mol = std::move(static_cast<ROMol &>(molCopy));
+  }
 }
 
 MolStandardize::FragmentRemover *removerFromParams(const std::string &data,
