@@ -142,7 +142,11 @@ AtomPDBResidueInfo *AtomGetPDBResidueInfo(Atom *atom) {
   if (res->getMonomerType() != AtomMonomerInfo::PDBRESIDUE) {
     throw_value_error("MonomerInfo is not a PDB Residue");
   }
-  return (AtomPDBResidueInfo *)res;
+  auto *pdbInfo = dynamic_cast<AtomPDBResidueInfo *>(res);
+  if (!pdbInfo) {
+    throw_value_error("MonomerInfo is not an AtomPDBResidueInfo");
+  }
+  return pdbInfo;
 }
 
 namespace {
