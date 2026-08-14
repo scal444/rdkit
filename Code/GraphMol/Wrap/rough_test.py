@@ -3448,6 +3448,7 @@ CAS<~>
     self.assertEqual(pdb_res_info.GetResidueName(), 'FOO')
     self.assertEqual(pdb_res_info.GetResidueNumber(), 12)
     self.assertEqual(pdb_res_info.GetMonomerClass(), 'LINK')
+    self.assertEqual(pdb_res_info.GetSerialNumber(), 0)
 
   def test85AtomCopying(self):
     """Can a copied atom be added to a molecule?"""
