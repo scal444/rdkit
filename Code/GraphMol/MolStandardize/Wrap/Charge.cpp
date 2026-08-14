@@ -50,7 +50,13 @@ MolStandardize::Reionizer *reionizerFromData(const std::string &data,
 }
 
 void unchargeInPlaceHelper(MolStandardize::Uncharger &self, ROMol &mol) {
-  self.unchargeInPlace(static_cast<RWMol &>(mol));
+  if (auto *wmol = dynamic_cast<RWMol *>(&mol)) {
+    self.unchargeInPlace(*wmol);
+  } else {
+    RWMol molCopy(mol);
+    self.unchargeInPlace(molCopy);
+    mol = std::move(static_cast<ROMol &>(molCopy));
+  }
 }
 
 }  // namespace
