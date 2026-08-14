@@ -8,8 +8,10 @@
 //  of the RDKit source tree.
 //
 #include <string>
+#include <atomic>
 #include <fstream>
 #include <sstream>
+#include <thread>
 #include <catch2/catch_all.hpp>
 #include "RDLog.h"
 
@@ -63,6 +65,38 @@ TEST_CASE("LogStateSetter") {
       strm->ClearTee();
     }
   }
+}
+
+TEST_CASE("LogStateSetter state is local to each thread") {
+  rdWarningLog->df_enabled = true;
+  std::atomic<unsigned int> ready{0};
+  std::atomic<bool> release{false};
+  std::atomic<bool> firstDisabled{false};
+  std::atomic<bool> secondDisabled{false};
+
+  auto checkDisabled = [&](std::atomic<bool> &result) {
+    RDLog::LogStateSetter disabler;
+    result = !RDLog::detail::isLogEnabled(rdWarningLog.get());
+    ++ready;
+    while (!release.load()) {
+      std::this_thread::yield();
+    }
+    result = result.load() &&
+             !RDLog::detail::isLogEnabled(rdWarningLog.get());
+  };
+
+  std::thread first(checkDisabled, std::ref(firstDisabled));
+  std::thread second(checkDisabled, std::ref(secondDisabled));
+  while (ready.load() != 2) {
+    std::this_thread::yield();
+  }
+  CHECK(RDLog::detail::isLogEnabled(rdWarningLog.get()));
+  release = true;
+  first.join();
+  second.join();
+  CHECK(firstDisabled);
+  CHECK(secondDisabled);
+  CHECK(RDLog::detail::isLogEnabled(rdWarningLog.get()));
 }
 
 TEST_CASE("GitHub Issue #5172", "[bug][logging]") {

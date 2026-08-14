@@ -28,34 +28,74 @@ namespace {
 const std::vector<RDLogger *> allLogs = {&rdAppLog,     &rdDebugLog,
                                          &rdInfoLog,    &rdErrorLog,
                                          &rdWarningLog, &rdStatusLog};
+
+constexpr std::uint64_t hadOverrideMask = std::uint64_t{1} << 63;
+
+std::uint64_t &currentLogOverride() {
+  static thread_local std::uint64_t state = 0;
+  return state;
+}
+
+std::uint64_t loggerMask(const boost::logging::rdLogger *logger) {
+  for (auto i = 0u; i < allLogs.size(); ++i) {
+    if (*allLogs[i] && allLogs[i]->get() == logger) {
+      return std::uint64_t{1} << i;
+    }
+  }
+  return 0;
+}
 }
 
 LogStateSetter::LogStateSetter() {
-  for (auto i = 0u; i < allLogs.size(); ++i) {
-    if (*allLogs[i] && (*allLogs[i])->df_enabled) {
-      d_origState |= 1 << i;
-      (*allLogs[i])->df_enabled = false;
-    }
-  }
+  d_origState = currentLogOverride();
+  currentLogOverride() = hadOverrideMask;
 }
 
 LogStateSetter::LogStateSetter(RDLoggerList toEnable) : LogStateSetter() {
-  for (auto i = 0u; i < allLogs.size(); ++i) {
-    if (*allLogs[i] && std::find(toEnable.begin(), toEnable.end(),
-                                 *allLogs[i]) != toEnable.end()) {
-      d_origState ^= 1 << i;
-      (*allLogs[i])->df_enabled = true;
+  for (const auto &logger : toEnable) {
+    if (logger) {
+      currentLogOverride() |= loggerMask(logger.get());
     }
   }
 }
 
-LogStateSetter::~LogStateSetter() {
-  for (auto i = 0u; i < allLogs.size(); ++i) {
-    if (*allLogs[i]) {
-      (*allLogs[i])->df_enabled ^= d_origState >> i & 1;
+LogStateSetter::~LogStateSetter() { currentLogOverride() = d_origState; }
+
+namespace detail {
+bool isLogEnabled(const boost::logging::rdLogger *logger) {
+  if (!logger) {
+    return false;
+  }
+  const auto override = currentLogOverride();
+  if (override & hadOverrideMask) {
+    const auto mask = loggerMask(logger);
+    if (mask) {
+      return override & mask;
     }
   }
+  return logger->df_enabled;
 }
+
+void setLogEnabledForCurrentThread(boost::logging::rdLogger *logger,
+                                   const bool enabled) {
+  if (!logger) {
+    return;
+  }
+  auto &override = currentLogOverride();
+  if (override & hadOverrideMask) {
+    const auto mask = loggerMask(logger);
+    if (mask) {
+      if (enabled) {
+        override |= mask;
+      } else {
+        override &= ~mask;
+      }
+      return;
+    }
+  }
+  logger->df_enabled = enabled;
+}
+}  // namespace detail
 }  // namespace RDLog
 namespace boost {
 namespace logging {
@@ -109,7 +149,9 @@ void disable_logs(const std::string &arg) {
   }
 };
 
-bool is_log_enabled(RDLogger log) { return log && log->df_enabled; }
+bool is_log_enabled(RDLogger log) {
+  return log && RDLog::detail::isLogEnabled(log.get());
+}
 
 void get_log_status(std::ostream &ss, const std::string &name, RDLogger log) {
   ss << name << ":";
@@ -153,8 +195,8 @@ CaptureLog::CaptureLog(RDLogger log) : d_log(std::move(log)) {
   if (!d_log) {
     return;
   }
-  d_logWasEnabled = d_log->df_enabled;
-  d_log->df_enabled = true;
+  d_logWasEnabled = detail::isLogEnabled(d_log.get());
+  detail::setLogEnabledForCurrentThread(d_log.get(), true);
   d_savedDest = d_log->dp_dest;
   d_log->dp_dest = &d_messages;
   d_savedTeestream = d_log->teestream;
@@ -167,7 +209,7 @@ CaptureLog::~CaptureLog() {
   }
   d_log->dp_dest = d_savedDest;
   d_log->teestream = d_savedTeestream;
-  d_log->df_enabled = d_logWasEnabled;
+  detail::setLogEnabledForCurrentThread(d_log.get(), d_logWasEnabled);
 }
 
 std::string CaptureLog::messages() const { return d_messages.str(); }

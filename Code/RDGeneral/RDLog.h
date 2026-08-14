@@ -106,11 +106,18 @@ RDKIT_RDGENERAL_EXPORT std::string log_status();
 }  // namespace boost
 namespace RDLog {
 RDKIT_RDGENERAL_EXPORT std::ostream &toStream(std::ostream &);
+namespace detail {
+RDKIT_RDGENERAL_EXPORT bool isLogEnabled(
+    const boost::logging::rdLogger *logger);
+RDKIT_RDGENERAL_EXPORT void setLogEnabledForCurrentThread(
+    boost::logging::rdLogger *logger, bool enabled);
 }
-#define BOOST_LOG(__arg__)                                      \
-  if ((__arg__) && (__arg__->dp_dest) && (__arg__->df_enabled)) \
+}
+#define BOOST_LOG(__arg__)                                           \
+  if ((__arg__) && (__arg__->dp_dest) &&                             \
+      RDLog::detail::isLogEnabled((__arg__).get()))                   \
   RDLog::toStream((__arg__->teestream) ? *(__arg__->teestream)  \
-                                       : *(__arg__->dp_dest))
+                                        : *(__arg__->dp_dest))
 
 using RDLogger = std::shared_ptr<boost::logging::rdLogger>;
 
@@ -137,11 +144,11 @@ RDKIT_RDGENERAL_EXPORT void InitLogs();
 using RDLoggerList = std::vector<RDLogger>;
 class RDKIT_RDGENERAL_EXPORT LogStateSetter : public boost::noncopyable {
  public:
-  //! enables only the logs in the list, the current state will be restored when
-  //! this object is destroyed
+  //! enables only the logs in the list for the current thread; the current
+  //! thread's state will be restored when this object is destroyed
   LogStateSetter(RDLoggerList toEnable);
-  //! disables all logs, the current state will be restored when this object is
-  //! destroyed
+  //! disables all logs for the current thread; the current thread's state will
+  //! be restored when this object is destroyed
   LogStateSetter();
   ~LogStateSetter();
 
