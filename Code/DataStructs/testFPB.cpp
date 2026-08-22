@@ -11,6 +11,8 @@
 #include <RDGeneral/utils.h>
 #include <DataStructs/ExplicitBitVect.h>
 #include <DataStructs/FPBReader.h>
+#include <cstdint>
+#include <memory>
 
 using namespace RDKit;
 
@@ -372,6 +374,16 @@ TEST_CASE("Bitset Details") {
       delete dbs;
       delete[] newBytes;
     }
+  }
+  {
+    const std::uint8_t bytes[] = {0x81};
+    std::unique_ptr<boost::dynamic_bitset<>> dbs(
+        RDKit::detail::bytesToBitset(bytes, 8));
+    REQUIRE(dbs);
+    REQUIRE(dbs->size() == 8);
+    REQUIRE(dbs->count() == 2);
+    REQUIRE((*dbs)[0]);
+    REQUIRE((*dbs)[7]);
   }
 }
 
