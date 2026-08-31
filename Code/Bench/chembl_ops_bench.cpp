@@ -6,6 +6,7 @@
 // which is included in the file license.txt, found at the root
 // of the RDKit source tree.
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -17,20 +18,29 @@
 #include <string_view>
 #include <vector>
 
+#include <DataStructs/BitOps.h>
 #include <DataStructs/ExplicitBitVect.h>
 #include <GraphMol/Descriptors/Lipinski.h>
+#include <GraphMol/DistGeomHelpers/Embedder.h>
 #include <GraphMol/Fingerprints/MorganGenerator.h>
+#include <GraphMol/MolOps.h>
 #include <GraphMol/MolPickler.h>
 #include <GraphMol/ROMol.h>
 #include <GraphMol/SmilesParse/SmilesParse.h>
 #include <GraphMol/SmilesParse/SmilesWrite.h>
 #include <GraphMol/Substruct/SubstructMatch.h>
 #include <GraphMol/new_canon.h>
+#include <RDGeneral/RDLog.h>
+
+#ifdef RDK_BUILD_INCHI_SUPPORT
+#include <INCHI-API/inchi.h>
+#endif
 
 namespace {
 
 using Molecules = std::vector<RDKit::ROMol>;
 using Queries = std::vector<std::unique_ptr<RDKit::ROMol>>;
+using Fingerprints = std::vector<std::unique_ptr<ExplicitBitVect>>;
 
 struct Corpus {
   Molecules molecules;
@@ -47,6 +57,10 @@ enum class Operation {
   Pickle,
   RankAtoms,
   Copy,
+  Etkdg,
+  BulkSimilarity,
+  InchiRoundtrip,
+  HsRoundtrip,
 };
 
 constexpr std::array<std::string_view, 12> kQueries = {
@@ -90,6 +104,18 @@ Operation parseOperation(std::string_view text) {
   }
   if (text == "copy") {
     return Operation::Copy;
+  }
+  if (text == "etkdg") {
+    return Operation::Etkdg;
+  }
+  if (text == "bulk_similarity") {
+    return Operation::BulkSimilarity;
+  }
+  if (text == "inchi_roundtrip") {
+    return Operation::InchiRoundtrip;
+  }
+  if (text == "hs_roundtrip") {
+    return Operation::HsRoundtrip;
   }
   throw std::invalid_argument("unknown operation: " + std::string(text));
 }
@@ -218,9 +244,94 @@ std::uint64_t benchmarkCopy(const Molecules &molecules) {
   return checksum;
 }
 
+Fingerprints makeFingerprints(
+    const Molecules &molecules,
+    const RDKit::FingerprintGenerator<std::uint64_t> &generator) {
+  Fingerprints fingerprints;
+  fingerprints.reserve(molecules.size());
+  for (const auto &molecule : molecules) {
+    fingerprints.emplace_back(generator.getFingerprint(molecule));
+  }
+  return fingerprints;
+}
+
+std::uint64_t benchmarkEtkdg(const Molecules &molecules) {
+  std::uint64_t checksum = 0;
+  for (const auto &molecule : molecules) {
+    std::unique_ptr<RDKit::ROMol> withHs(RDKit::MolOps::addHs(molecule));
+    auto parameters = RDKit::DGeomHelpers::ETKDGv3;
+    parameters.numThreads = 1;
+    parameters.randomSeed = 0xC0FFEE;
+    const auto conformerId =
+        RDKit::DGeomHelpers::EmbedMolecule(*withHs, parameters);
+    if (conformerId < 0) {
+      ++checksum;
+      continue;
+    }
+    std::unique_ptr<RDKit::ROMol> withoutHs(
+        RDKit::MolOps::removeHs(*withHs));
+    checksum += 2 + withoutHs->getNumAtoms() + withoutHs->getNumConformers();
+  }
+  return checksum;
+}
+
+std::uint64_t benchmarkBulkSimilarity(const Fingerprints &fingerprints) {
+  constexpr std::size_t queryLimit = 100;
+  const auto queryCount = std::min(queryLimit, fingerprints.size());
+  std::uint64_t checksum = 0;
+  for (std::size_t query = 0; query < queryCount; ++query) {
+    const auto queryIndex = query * fingerprints.size() / queryCount;
+    for (const auto &candidate : fingerprints) {
+      if (TanimotoSimilarity(*fingerprints[queryIndex], *candidate) >= 0.4) {
+        ++checksum;
+      }
+    }
+  }
+  return checksum;
+}
+
+std::uint64_t benchmarkInchiRoundtrip(const Molecules &molecules) {
+#ifdef RDK_BUILD_INCHI_SUPPORT
+  std::uint64_t checksum = 0;
+  RDLog::LogStateSetter blockLogs;
+  for (const auto &molecule : molecules) {
+    try {
+      RDKit::ExtraInchiReturnValues toInchiResult;
+      const auto inchi = RDKit::MolToInchi(molecule, toInchiResult);
+      RDKit::ExtraInchiReturnValues fromInchiResult;
+      std::unique_ptr<RDKit::ROMol> restored(
+          RDKit::InchiToMol(inchi, fromInchiResult));
+      checksum += inchi.size();
+      if (restored) {
+        checksum += restored->getNumAtoms();
+      } else {
+        ++checksum;
+      }
+    } catch (const std::exception &) {
+      ++checksum;
+    }
+  }
+  return checksum;
+#else
+  throw std::runtime_error("InChI support is not enabled in this build");
+#endif
+}
+
+std::uint64_t benchmarkHsRoundtrip(const Molecules &molecules) {
+  std::uint64_t checksum = 0;
+  for (const auto &molecule : molecules) {
+    std::unique_ptr<RDKit::ROMol> withHs(RDKit::MolOps::addHs(molecule));
+    std::unique_ptr<RDKit::ROMol> restored(
+        RDKit::MolOps::removeHs(*withHs));
+    checksum += withHs->getNumAtoms() + restored->getNumAtoms();
+  }
+  return checksum;
+}
+
 std::uint64_t runOperation(
     Operation operation, const Molecules &molecules, const Queries &queries,
-    const RDKit::FingerprintGenerator<std::uint64_t> &generator) {
+    const RDKit::FingerprintGenerator<std::uint64_t> &generator,
+    const Fingerprints &fingerprints) {
   switch (operation) {
     case Operation::CanonicalSmiles:
       return benchmarkCanonicalSmiles(molecules);
@@ -236,6 +347,14 @@ std::uint64_t runOperation(
       return benchmarkRankAtoms(molecules);
     case Operation::Copy:
       return benchmarkCopy(molecules);
+    case Operation::Etkdg:
+      return benchmarkEtkdg(molecules);
+    case Operation::BulkSimilarity:
+      return benchmarkBulkSimilarity(fingerprints);
+    case Operation::InchiRoundtrip:
+      return benchmarkInchiRoundtrip(molecules);
+    case Operation::HsRoundtrip:
+      return benchmarkHsRoundtrip(molecules);
   }
   throw std::logic_error("unhandled benchmark operation");
 }
@@ -244,7 +363,8 @@ void printUsage(const char *program) {
   std::cerr
       << "Usage: " << program << " OPERATION INPUT COUNT REPEATS\n"
       << "Operations: canonical_smiles, morgan, substructure, descriptors, "
-         "pickle, rank_atoms, copy\n";
+         "pickle, rank_atoms, copy, etkdg, bulk_similarity, inchi_roundtrip, "
+         "hs_roundtrip\n";
 }
 
 }  // namespace
@@ -265,15 +385,20 @@ int main(int argc, char *argv[]) {
     auto queries = makeQueries();
     std::unique_ptr<RDKit::FingerprintGenerator<std::uint64_t>> generator(
         RDKit::MorganFingerprint::getMorganGenerator<std::uint64_t>(2));
-    const auto warmupChecksum =
-        runOperation(operation, corpus.molecules, queries, *generator);
+    Fingerprints fingerprints;
+    if (operation == Operation::BulkSimilarity) {
+      fingerprints = makeFingerprints(corpus.molecules, *generator);
+    }
+    const auto warmupChecksum = runOperation(
+        operation, corpus.molecules, queries, *generator, fingerprints);
     const auto setupElapsed = std::chrono::steady_clock::now() - setupStart;
 
     std::uint64_t checksum = 0;
     const auto start = std::chrono::steady_clock::now();
     for (std::size_t repeat = 0; repeat < repeats; ++repeat) {
       checksum +=
-          runOperation(operation, corpus.molecules, queries, *generator);
+          runOperation(operation, corpus.molecules, queries, *generator,
+                       fingerprints);
     }
     const auto elapsed = std::chrono::steady_clock::now() - start;
 

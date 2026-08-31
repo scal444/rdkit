@@ -21,10 +21,20 @@ target_link_libraries(smiles_pipeline_bench SmilesParse)
 
 add_executable(chembl_ops_bench EXCLUDE_FROM_ALL chembl_ops_bench.cpp)
 target_link_libraries(chembl_ops_bench
+  DataStructs
   Descriptors
+  DistGeomHelpers
   Fingerprints
+  GraphMol
   SmilesParse
 )
+if(RDK_BUILD_INCHI_SUPPORT)
+  target_compile_definitions(chembl_ops_bench PRIVATE RDK_BUILD_INCHI_SUPPORT)
+  target_include_directories(chembl_ops_bench PRIVATE
+    ${CMAKE_SOURCE_DIR}/External
+  )
+  target_link_libraries(chembl_ops_bench RDInchiLib)
+endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_compile_options(chembl_ops_bench PRIVATE
     -fno-lto
