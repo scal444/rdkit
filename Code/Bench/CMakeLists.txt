@@ -19,6 +19,36 @@ target_link_libraries(bench rdkitCatch
 add_executable(smiles_pipeline_bench EXCLUDE_FROM_ALL smiles_pipeline_bench.cpp)
 target_link_libraries(smiles_pipeline_bench SmilesParse)
 
+add_executable(chembl_ops_bench EXCLUDE_FROM_ALL chembl_ops_bench.cpp)
+target_link_libraries(chembl_ops_bench
+  Descriptors
+  Fingerprints
+  SmilesParse
+)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  target_compile_options(chembl_ops_bench PRIVATE
+    -fno-lto
+    -fno-profile-instr-generate
+    -fno-profile-instr-use
+  )
+  target_link_options(chembl_ops_bench PRIVATE
+    -fno-lto
+    -fno-profile-instr-generate
+    -fno-profile-instr-use
+  )
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_compile_options(chembl_ops_bench PRIVATE
+    -fno-lto
+    -fno-profile-generate
+    -fno-profile-use
+  )
+  target_link_options(chembl_ops_bench PRIVATE
+    -fno-lto
+    -fno-profile-generate
+    -fno-profile-use
+  )
+endif()
+
 if(RDK_BUILD_INCHI_SUPPORT)
   target_link_libraries(bench RDInchiLib)
   target_sources(bench PRIVATE inchi.cpp)
