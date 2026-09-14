@@ -43,14 +43,12 @@ smiles_file=/path/to/representative.smi
 build-pgo-generate/Code/Bench/smiles_pipeline_bench \
   "$smiles_file" 135000
 for operation in canonical_smiles morgan pains_substructure pickle \
-    inchi_roundtrip hs_roundtrip; do
+    tanimoto_similarity inchi_roundtrip hs_roundtrip; do
   build-pgo-generate/Code/Bench/molecule_workloads_bench \
     "$operation" "$smiles_file" 10000 1
 done
 build-pgo-generate/Code/Bench/molecule_workloads_bench \
   etkdg "$smiles_file" 100 1
-# Use the Python interpreter configured for the instrumented RDKit build.
-python3 Code/Bench/bulk_similarity_bench.py "$smiles_file" 10000 1
 ```
 
 The input sizes and operation frequencies determine the profile weighting and

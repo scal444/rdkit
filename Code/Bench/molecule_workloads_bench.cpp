@@ -19,6 +19,7 @@
 #include <string_view>
 #include <vector>
 
+#include <DataStructs/BitOps.h>
 #include <DataStructs/ExplicitBitVect.h>
 #include <GraphMol/DistGeomHelpers/Embedder.h>
 #include <GraphMol/FilterCatalog/FilterCatalog.h>
@@ -55,6 +56,7 @@ enum class Operation {
   PainsSubstructure,
   Pickle,
   Etkdg,
+  TanimotoSimilarity,
   InchiRoundtrip,
   HsRoundtrip,
 };
@@ -70,6 +72,7 @@ constexpr std::array operationOptions{
     OperationOption{"pains_substructure", Operation::PainsSubstructure},
     OperationOption{"pickle", Operation::Pickle},
     OperationOption{"etkdg", Operation::Etkdg},
+    OperationOption{"tanimoto_similarity", Operation::TanimotoSimilarity},
     OperationOption{"inchi_roundtrip", Operation::InchiRoundtrip},
     OperationOption{"hs_roundtrip", Operation::HsRoundtrip},
 };
@@ -190,6 +193,17 @@ OperationResult benchmarkPickle(const std::vector<RDKit::ROMol> &molecules) {
   return result;
 }
 
+std::vector<std::unique_ptr<ExplicitBitVect>> makeFingerprints(
+    const std::vector<RDKit::ROMol> &molecules,
+    const RDKit::FingerprintGenerator<std::uint64_t> &generator) {
+  std::vector<std::unique_ptr<ExplicitBitVect>> fingerprints;
+  fingerprints.reserve(molecules.size());
+  for (const auto &molecule : molecules) {
+    fingerprints.emplace_back(generator.getFingerprint(molecule));
+  }
+  return fingerprints;
+}
+
 OperationResult benchmarkEtkdg(const std::vector<RDKit::ROMol> &molecules) {
   OperationResult result;
   for (const auto &molecule : molecules) {
@@ -208,6 +222,23 @@ OperationResult benchmarkEtkdg(const std::vector<RDKit::ROMol> &molecules) {
     std::unique_ptr<RDKit::ROMol> withoutHs(RDKit::MolOps::removeHs(*withHs));
     result.checksum +=
         2 + withoutHs->getNumAtoms() + withoutHs->getNumConformers();
+  }
+  return result;
+}
+
+OperationResult benchmarkTanimotoSimilarity(
+    const std::vector<std::unique_ptr<ExplicitBitVect>> &fingerprints) {
+  constexpr std::size_t queryLimit = 100;
+  const auto queryCount = std::min(queryLimit, fingerprints.size());
+  OperationResult result;
+  for (std::size_t query = 0; query < queryCount; ++query) {
+    const auto queryIndex = query * fingerprints.size() / queryCount;
+    for (const auto &candidate : fingerprints) {
+      if (TanimotoSimilarity(*fingerprints[queryIndex], *candidate) >= 0.4) {
+        ++result.checksum;
+      }
+      ++result.attempts;
+    }
   }
   return result;
 }
@@ -258,7 +289,8 @@ OperationResult benchmarkHsRoundtrip(
 OperationResult runOperation(
     Operation operation, const std::vector<RDKit::ROMol> &molecules,
     const RDKit::FilterCatalog *painsCatalog,
-    const RDKit::FingerprintGenerator<std::uint64_t> *generator) {
+    const RDKit::FingerprintGenerator<std::uint64_t> *generator,
+    const std::vector<std::unique_ptr<ExplicitBitVect>> &fingerprints) {
   switch (operation) {
     case Operation::CanonicalSmiles:
       return benchmarkCanonicalSmiles(molecules);
@@ -276,6 +308,8 @@ OperationResult runOperation(
       return benchmarkPickle(molecules);
     case Operation::Etkdg:
       return benchmarkEtkdg(molecules);
+    case Operation::TanimotoSimilarity:
+      return benchmarkTanimotoSimilarity(fingerprints);
     case Operation::InchiRoundtrip:
       return benchmarkInchiRoundtrip(molecules);
     case Operation::HsRoundtrip:
@@ -314,19 +348,26 @@ int main(int argc, char *argv[]) {
           RDKit::FilterCatalogParams::PAINS);
     }
     std::unique_ptr<RDKit::FingerprintGenerator<std::uint64_t>> generator;
-    if (operation == Operation::Morgan) {
+    if (operation == Operation::Morgan ||
+        operation == Operation::TanimotoSimilarity) {
       generator.reset(
           RDKit::MorganFingerprint::getMorganGenerator<std::uint64_t>(2));
     }
-    const auto warmup = runOperation(operation, loaded.molecules,
-                                     painsCatalog.get(), generator.get());
+    std::vector<std::unique_ptr<ExplicitBitVect>> fingerprints;
+    if (operation == Operation::TanimotoSimilarity) {
+      fingerprints = makeFingerprints(loaded.molecules, *generator);
+    }
+    const auto warmup =
+        runOperation(operation, loaded.molecules, painsCatalog.get(),
+                     generator.get(), fingerprints);
     const auto setupElapsed = std::chrono::steady_clock::now() - setupStart;
 
     OperationResult result;
     const auto start = std::chrono::steady_clock::now();
     for (std::size_t repeat = 0; repeat < repeats; ++repeat) {
-      const auto iteration = runOperation(operation, loaded.molecules,
-                                          painsCatalog.get(), generator.get());
+      const auto iteration =
+          runOperation(operation, loaded.molecules, painsCatalog.get(),
+                       generator.get(), fingerprints);
       result.checksum += iteration.checksum;
       result.attempts += iteration.attempts;
       result.failures += iteration.failures;
