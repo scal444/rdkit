@@ -108,7 +108,7 @@ set(RDK_PGO_MODE "OFF" CACHE STRING
     "profile-guided optimization mode: OFF, GENERATE, or USE")
 set_property(CACHE RDK_PGO_MODE PROPERTY STRINGS OFF GENERATE USE)
 set(RDK_PGO_PROFILE_PATH "" CACHE PATH
-    "Clang profdata file or GCC profile directory")
+    "absolute PGO output directory for GENERATE or profile input for USE")
 
 string(TOUPPER "${RDK_LTO_MODE}" RDK_LTO_MODE_UPPER)
 if(NOT RDK_LTO_MODE_UPPER MATCHES "^(OFF|THIN|FULL)$")
@@ -146,12 +146,17 @@ if(NOT RDK_PGO_MODE_UPPER MATCHES "^(OFF|GENERATE|USE)$")
 endif()
 
 if(NOT RDK_PGO_MODE_UPPER STREQUAL "OFF")
+  if(NOT IS_ABSOLUTE "${RDK_PGO_PROFILE_PATH}")
+    message(FATAL_ERROR
+        "RDK_PGO_PROFILE_PATH must be absolute: ${RDK_PGO_PROFILE_PATH}")
+  endif()
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     if(RDK_PGO_MODE_UPPER STREQUAL "GENERATE")
-      set(RDK_PGO_FLAG "-fprofile-instr-generate")
+      file(MAKE_DIRECTORY "${RDK_PGO_PROFILE_PATH}")
+      set(RDK_PGO_FLAG
+          "-fprofile-instr-generate=${RDK_PGO_PROFILE_PATH}/default_%m.profraw")
     else()
-      if(NOT IS_ABSOLUTE "${RDK_PGO_PROFILE_PATH}" OR
-         NOT EXISTS "${RDK_PGO_PROFILE_PATH}" OR
+      if(NOT EXISTS "${RDK_PGO_PROFILE_PATH}" OR
          IS_DIRECTORY "${RDK_PGO_PROFILE_PATH}")
         message(FATAL_ERROR
             "RDK_PGO_PROFILE_PATH must name an existing absolute profdata "
@@ -161,11 +166,6 @@ if(NOT RDK_PGO_MODE_UPPER STREQUAL "OFF")
       add_compile_options(-Wprofile-instr-out-of-date)
     endif()
   elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    if(NOT IS_ABSOLUTE "${RDK_PGO_PROFILE_PATH}")
-      message(FATAL_ERROR
-          "RDK_PGO_PROFILE_PATH must be an absolute GCC profile directory: "
-          "${RDK_PGO_PROFILE_PATH}")
-    endif()
     if(RDK_PGO_MODE_UPPER STREQUAL "GENERATE")
       file(MAKE_DIRECTORY "${RDK_PGO_PROFILE_PATH}")
       set(RDK_PGO_FLAG "-fprofile-generate=${RDK_PGO_PROFILE_PATH}")

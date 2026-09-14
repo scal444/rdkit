@@ -35,31 +35,6 @@ if(RDK_BUILD_INCHI_SUPPORT)
   )
   target_link_libraries(chembl_ops_bench RDInchiLib)
 endif()
-foreach(target smiles_pipeline_bench chembl_ops_bench)
-  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(${target} PRIVATE
-      -fno-lto
-      -fno-profile-instr-generate
-      -fno-profile-instr-use
-    )
-    target_link_options(${target} PRIVATE
-      -fno-lto
-      -fno-profile-instr-generate
-      -fno-profile-instr-use
-    )
-  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(${target} PRIVATE
-      -fno-lto
-      -fno-profile-generate
-      -fno-profile-use
-    )
-    target_link_options(${target} PRIVATE
-      -fno-lto
-      -fno-profile-generate
-      -fno-profile-use
-    )
-  endif()
-endforeach()
 
 if(RDK_BUILD_INCHI_SUPPORT)
   target_link_libraries(bench RDInchiLib)
