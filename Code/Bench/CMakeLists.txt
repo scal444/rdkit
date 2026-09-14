@@ -22,8 +22,8 @@ target_link_libraries(smiles_pipeline_bench SmilesParse)
 add_executable(chembl_ops_bench EXCLUDE_FROM_ALL chembl_ops_bench.cpp)
 target_link_libraries(chembl_ops_bench
   DataStructs
-  Descriptors
   DistGeomHelpers
+  FilterCatalog
   Fingerprints
   GraphMol
   SmilesParse
@@ -35,29 +35,31 @@ if(RDK_BUILD_INCHI_SUPPORT)
   )
   target_link_libraries(chembl_ops_bench RDInchiLib)
 endif()
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  target_compile_options(chembl_ops_bench PRIVATE
-    -fno-lto
-    -fno-profile-instr-generate
-    -fno-profile-instr-use
-  )
-  target_link_options(chembl_ops_bench PRIVATE
-    -fno-lto
-    -fno-profile-instr-generate
-    -fno-profile-instr-use
-  )
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  target_compile_options(chembl_ops_bench PRIVATE
-    -fno-lto
-    -fno-profile-generate
-    -fno-profile-use
-  )
-  target_link_options(chembl_ops_bench PRIVATE
-    -fno-lto
-    -fno-profile-generate
-    -fno-profile-use
-  )
-endif()
+foreach(target smiles_pipeline_bench chembl_ops_bench)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(${target} PRIVATE
+      -fno-lto
+      -fno-profile-instr-generate
+      -fno-profile-instr-use
+    )
+    target_link_options(${target} PRIVATE
+      -fno-lto
+      -fno-profile-instr-generate
+      -fno-profile-instr-use
+    )
+  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(${target} PRIVATE
+      -fno-lto
+      -fno-profile-generate
+      -fno-profile-use
+    )
+    target_link_options(${target} PRIVATE
+      -fno-lto
+      -fno-profile-generate
+      -fno-profile-use
+    )
+  endif()
+endforeach()
 
 if(RDK_BUILD_INCHI_SUPPORT)
   target_link_libraries(bench RDInchiLib)
