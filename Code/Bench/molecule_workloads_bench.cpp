@@ -24,6 +24,7 @@
 #include <GraphMol/DistGeomHelpers/Embedder.h>
 #include <GraphMol/FilterCatalog/FilterCatalog.h>
 #include <GraphMol/Fingerprints/MorganGenerator.h>
+#include <GraphMol/ForceFieldHelpers/MMFF/MMFF.h>
 #include <GraphMol/MolOps.h>
 #include <GraphMol/MolPickler.h>
 #include <GraphMol/ROMol.h>
@@ -56,6 +57,7 @@ enum class Operation {
   PainsSubstructure,
   Pickle,
   Etkdg,
+  Mmff,
   TanimotoSimilarity,
   InchiRoundtrip,
   HsRoundtrip,
@@ -72,6 +74,7 @@ constexpr std::array operationOptions{
     OperationOption{"pains_substructure", Operation::PainsSubstructure},
     OperationOption{"pickle", Operation::Pickle},
     OperationOption{"etkdg", Operation::Etkdg},
+    OperationOption{"mmff", Operation::Mmff},
     OperationOption{"tanimoto_similarity", Operation::TanimotoSimilarity},
     OperationOption{"inchi_roundtrip", Operation::InchiRoundtrip},
     OperationOption{"hs_roundtrip", Operation::HsRoundtrip},
@@ -226,6 +229,43 @@ OperationResult benchmarkEtkdg(const std::vector<RDKit::ROMol> &molecules) {
   return result;
 }
 
+OperationResult benchmarkMmff(const std::vector<RDKit::ROMol> &molecules,
+                              std::size_t inputMoleculeCount) {
+  OperationResult result;
+  result.attempts = inputMoleculeCount;
+  result.failures = inputMoleculeCount - molecules.size();
+  for (const auto &molecule : molecules) {
+    RDKit::ROMol workingMolecule(molecule);
+    const auto optimization =
+        RDKit::MMFF::MMFFOptimizeMolecule(workingMolecule, 200);
+    if (optimization.first != 0) {
+      ++result.failures;
+    }
+    result.checksum += workingMolecule.getNumAtoms();
+    result.checksum += static_cast<std::uint64_t>(optimization.first + 2);
+  }
+  return result;
+}
+
+std::vector<RDKit::ROMol> prepareMmffMolecules(
+    const std::vector<RDKit::ROMol> &molecules) {
+  std::vector<RDKit::ROMol> prepared;
+  prepared.reserve(molecules.size());
+  for (const auto &molecule : molecules) {
+    std::unique_ptr<RDKit::ROMol> withHs(RDKit::MolOps::addHs(molecule));
+    auto parameters = RDKit::DGeomHelpers::ETKDGv3;
+    parameters.numThreads = 1;
+    parameters.randomSeed = 0xC0FFEE;
+    if (RDKit::DGeomHelpers::EmbedMolecule(*withHs, parameters) >= 0) {
+      prepared.push_back(std::move(*withHs));
+    }
+  }
+  if (prepared.empty()) {
+    throw std::runtime_error("no molecules could be prepared for MMFF");
+  }
+  return prepared;
+}
+
 OperationResult benchmarkTanimotoSimilarity(
     const std::vector<std::unique_ptr<ExplicitBitVect>> &fingerprints) {
   constexpr std::size_t queryLimit = 100;
@@ -290,7 +330,8 @@ OperationResult runOperation(
     Operation operation, const std::vector<RDKit::ROMol> &molecules,
     const RDKit::FilterCatalog *painsCatalog,
     const RDKit::FingerprintGenerator<std::uint64_t> *generator,
-    const std::vector<std::unique_ptr<ExplicitBitVect>> &fingerprints) {
+    const std::vector<std::unique_ptr<ExplicitBitVect>> &fingerprints,
+    const std::vector<RDKit::ROMol> &mmffMolecules) {
   switch (operation) {
     case Operation::CanonicalSmiles:
       return benchmarkCanonicalSmiles(molecules);
@@ -308,6 +349,8 @@ OperationResult runOperation(
       return benchmarkPickle(molecules);
     case Operation::Etkdg:
       return benchmarkEtkdg(molecules);
+    case Operation::Mmff:
+      return benchmarkMmff(mmffMolecules, molecules.size());
     case Operation::TanimotoSimilarity:
       return benchmarkTanimotoSimilarity(fingerprints);
     case Operation::InchiRoundtrip:
@@ -357,9 +400,13 @@ int main(int argc, char *argv[]) {
     if (operation == Operation::TanimotoSimilarity) {
       fingerprints = makeFingerprints(loaded.molecules, *generator);
     }
+    std::vector<RDKit::ROMol> mmffMolecules;
+    if (operation == Operation::Mmff) {
+      mmffMolecules = prepareMmffMolecules(loaded.molecules);
+    }
     const auto warmup =
         runOperation(operation, loaded.molecules, painsCatalog.get(),
-                     generator.get(), fingerprints);
+                     generator.get(), fingerprints, mmffMolecules);
     const auto setupElapsed = std::chrono::steady_clock::now() - setupStart;
 
     OperationResult result;
@@ -367,7 +414,7 @@ int main(int argc, char *argv[]) {
     for (std::size_t repeat = 0; repeat < repeats; ++repeat) {
       const auto iteration =
           runOperation(operation, loaded.molecules, painsCatalog.get(),
-                       generator.get(), fingerprints);
+                       generator.get(), fingerprints, mmffMolecules);
       result.checksum += iteration.checksum;
       result.attempts += iteration.attempts;
       result.failures += iteration.failures;

@@ -26,6 +26,7 @@ target_link_libraries(molecule_workloads_bench
   DistGeomHelpers
   FilterCatalog
   Fingerprints
+  ForceFieldHelpers
   GraphMol
   SmilesParse
 )

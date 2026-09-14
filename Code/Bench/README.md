@@ -49,6 +49,8 @@ for operation in canonical_smiles morgan pains_substructure pickle \
 done
 build-pgo-generate/Code/Bench/molecule_workloads_bench \
   etkdg "$smiles_file" 100 1
+build-pgo-generate/Code/Bench/molecule_workloads_bench \
+  mmff "$smiles_file" 100 1
 ```
 
 The input sizes and operation frequencies determine the profile weighting and
