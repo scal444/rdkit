@@ -104,6 +104,11 @@ set(RDK_LTO_MODE "OFF" CACHE STRING
 set_property(CACHE RDK_LTO_MODE PROPERTY STRINGS OFF THIN FULL)
 set(RDK_LTO_JOBS "auto" CACHE STRING
     "GCC full-LTO parallelism: auto or a positive integer")
+set(RDK_PGO_MODE "OFF" CACHE STRING
+    "profile-guided optimization mode: OFF, GENERATE, or USE")
+set_property(CACHE RDK_PGO_MODE PROPERTY STRINGS OFF GENERATE USE)
+set(RDK_PGO_PROFILE_PATH "" CACHE PATH
+    "Clang profdata file or GCC profile directory")
 
 string(TOUPPER "${RDK_LTO_MODE}" RDK_LTO_MODE_UPPER)
 if(NOT RDK_LTO_MODE_UPPER MATCHES "^(OFF|THIN|FULL)$")
@@ -132,6 +137,54 @@ if(NOT RDK_LTO_MODE_UPPER STREQUAL "OFF")
     message(FATAL_ERROR
         "RDK_LTO_MODE=${RDK_LTO_MODE} requires Clang or GCC")
   endif()
+endif()
+
+string(TOUPPER "${RDK_PGO_MODE}" RDK_PGO_MODE_UPPER)
+if(NOT RDK_PGO_MODE_UPPER MATCHES "^(OFF|GENERATE|USE)$")
+  message(FATAL_ERROR
+      "RDK_PGO_MODE must be one of OFF, GENERATE, or USE: ${RDK_PGO_MODE}")
+endif()
+
+if(NOT RDK_PGO_MODE_UPPER STREQUAL "OFF")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    if(RDK_PGO_MODE_UPPER STREQUAL "GENERATE")
+      set(RDK_PGO_FLAG "-fprofile-instr-generate")
+    else()
+      if(NOT IS_ABSOLUTE "${RDK_PGO_PROFILE_PATH}" OR
+         NOT EXISTS "${RDK_PGO_PROFILE_PATH}" OR
+         IS_DIRECTORY "${RDK_PGO_PROFILE_PATH}")
+        message(FATAL_ERROR
+            "RDK_PGO_PROFILE_PATH must name an existing absolute profdata "
+            "file when using Clang PGO: ${RDK_PGO_PROFILE_PATH}")
+      endif()
+      set(RDK_PGO_FLAG "-fprofile-instr-use=${RDK_PGO_PROFILE_PATH}")
+      add_compile_options(-Wprofile-instr-out-of-date)
+    endif()
+  elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if(NOT IS_ABSOLUTE "${RDK_PGO_PROFILE_PATH}")
+      message(FATAL_ERROR
+          "RDK_PGO_PROFILE_PATH must be an absolute GCC profile directory: "
+          "${RDK_PGO_PROFILE_PATH}")
+    endif()
+    if(RDK_PGO_MODE_UPPER STREQUAL "GENERATE")
+      file(MAKE_DIRECTORY "${RDK_PGO_PROFILE_PATH}")
+      set(RDK_PGO_FLAG "-fprofile-generate=${RDK_PGO_PROFILE_PATH}")
+    else()
+      if(NOT IS_DIRECTORY "${RDK_PGO_PROFILE_PATH}")
+        message(FATAL_ERROR
+            "GCC profile directory does not exist: ${RDK_PGO_PROFILE_PATH}")
+      endif()
+      set(RDK_PGO_FLAG "-fprofile-use=${RDK_PGO_PROFILE_PATH}")
+      add_compile_options(-fprofile-correction)
+    endif()
+    add_compile_options("-fprofile-prefix-path=${CMAKE_BINARY_DIR}")
+    add_link_options("-fprofile-prefix-path=${CMAKE_BINARY_DIR}")
+  else()
+    message(FATAL_ERROR
+        "RDK_PGO_MODE=${RDK_PGO_MODE} requires Clang or GCC")
+  endif()
+  add_compile_options("${RDK_PGO_FLAG}")
+  add_link_options("${RDK_PGO_FLAG}")
 endif()
 
 set(RDK_BOOST_VERSION "1.81.0")
