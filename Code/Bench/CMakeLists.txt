@@ -19,8 +19,9 @@ target_link_libraries(bench rdkitCatch
 add_executable(smiles_pipeline_bench EXCLUDE_FROM_ALL smiles_pipeline_bench.cpp)
 target_link_libraries(smiles_pipeline_bench SmilesParse)
 
-add_executable(chembl_ops_bench EXCLUDE_FROM_ALL chembl_ops_bench.cpp)
-target_link_libraries(chembl_ops_bench
+add_executable(molecule_workloads_bench EXCLUDE_FROM_ALL
+  molecule_workloads_bench.cpp)
+target_link_libraries(molecule_workloads_bench
   DataStructs
   DistGeomHelpers
   FilterCatalog
@@ -29,11 +30,12 @@ target_link_libraries(chembl_ops_bench
   SmilesParse
 )
 if(RDK_BUILD_INCHI_SUPPORT)
-  target_compile_definitions(chembl_ops_bench PRIVATE RDK_BUILD_INCHI_SUPPORT)
-  target_include_directories(chembl_ops_bench PRIVATE
+  target_compile_definitions(molecule_workloads_bench PRIVATE
+    RDK_BUILD_INCHI_SUPPORT)
+  target_include_directories(molecule_workloads_bench PRIVATE
     ${CMAKE_SOURCE_DIR}/External
   )
-  target_link_libraries(chembl_ops_bench RDInchiLib)
+  target_link_libraries(molecule_workloads_bench RDInchiLib)
 endif()
 
 if(RDK_BUILD_INCHI_SUPPORT)

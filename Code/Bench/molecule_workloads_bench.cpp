@@ -7,6 +7,8 @@
 // of the RDKit source tree.
 
 #include <algorithm>
+#include <array>
+#include <charconv>
 #include <chrono>
 #include <cstdint>
 #include <fstream>
@@ -17,7 +19,6 @@
 #include <string_view>
 #include <vector>
 
-#include <DataStructs/BitOps.h>
 #include <DataStructs/ExplicitBitVect.h>
 #include <GraphMol/DistGeomHelpers/Embedder.h>
 #include <GraphMol/FilterCatalog/FilterCatalog.h>
@@ -35,11 +36,8 @@
 
 namespace {
 
-using Molecules = std::vector<RDKit::ROMol>;
-using Fingerprints = std::vector<std::unique_ptr<ExplicitBitVect>>;
-
-struct Corpus {
-  Molecules molecules;
+struct LoadedMolecules {
+  std::vector<RDKit::ROMol> molecules;
   std::size_t read = 0;
   std::size_t failures = 0;
   std::size_t atoms = 0;
@@ -57,97 +55,99 @@ enum class Operation {
   PainsSubstructure,
   Pickle,
   Etkdg,
-  BulkSimilarity,
   InchiRoundtrip,
   HsRoundtrip,
 };
 
-std::size_t parsePositiveInteger(const char *text, const char *name) {
-  try {
-    std::size_t consumed = 0;
-    const auto value = std::stoull(text, &consumed);
-    if (consumed != std::string(text).size() || value == 0) {
-      throw std::invalid_argument("not a positive integer");
-    }
-    return value;
-  } catch (const std::exception &) {
-    throw std::invalid_argument(std::string("invalid ") + name + ": " + text);
+struct OperationOption {
+  std::string_view name;
+  Operation operation;
+};
+
+constexpr std::array operationOptions{
+    OperationOption{"canonical_smiles", Operation::CanonicalSmiles},
+    OperationOption{"morgan", Operation::Morgan},
+    OperationOption{"pains_substructure", Operation::PainsSubstructure},
+    OperationOption{"pickle", Operation::Pickle},
+    OperationOption{"etkdg", Operation::Etkdg},
+    OperationOption{"inchi_roundtrip", Operation::InchiRoundtrip},
+    OperationOption{"hs_roundtrip", Operation::HsRoundtrip},
+};
+
+std::size_t parsePositiveInteger(std::string_view text, std::string_view name) {
+  std::size_t value = 0;
+  const auto [end, error] =
+      std::from_chars(text.data(), text.data() + text.size(), value);
+  if (error != std::errc{} || end != text.data() + text.size() || value == 0) {
+    throw std::invalid_argument("invalid " + std::string(name) + ": " +
+                                std::string(text));
   }
+  return value;
 }
 
 Operation parseOperation(std::string_view text) {
-  if (text == "canonical_smiles") {
-    return Operation::CanonicalSmiles;
-  }
-  if (text == "morgan") {
-    return Operation::Morgan;
-  }
-  if (text == "pains_substructure") {
-    return Operation::PainsSubstructure;
-  }
-  if (text == "pickle") {
-    return Operation::Pickle;
-  }
-  if (text == "etkdg") {
-    return Operation::Etkdg;
-  }
-  if (text == "bulk_similarity") {
-    return Operation::BulkSimilarity;
-  }
-  if (text == "inchi_roundtrip") {
-    return Operation::InchiRoundtrip;
-  }
-  if (text == "hs_roundtrip") {
-    return Operation::HsRoundtrip;
+  const auto option = std::find_if(
+      operationOptions.begin(), operationOptions.end(),
+      [text](const auto &candidate) { return candidate.name == text; });
+  if (option != operationOptions.end()) {
+    return option->operation;
   }
   throw std::invalid_argument("unknown operation: " + std::string(text));
 }
 
-Corpus loadCorpus(const std::string &path, std::size_t requested) {
+LoadedMolecules loadMolecules(const std::string &path, std::size_t requested) {
   std::ifstream input(path);
   if (!input) {
     throw std::runtime_error("cannot open input: " + path);
   }
 
-  Corpus corpus;
-  corpus.molecules.reserve(requested);
+  // Parse and retain the molecules before timing an operation. This keeps file
+  // I/O and SMILES parsing out of benchmarks that are intended to measure a
+  // later operation. The small reader also accepts both headerless SMILES files
+  // and tables whose first-column heading is "smiles".
+  LoadedMolecules loaded;
+  loaded.molecules.reserve(requested);
   std::string line;
-  while (corpus.read < requested && std::getline(input, line)) {
+  while (loaded.read < requested && std::getline(input, line)) {
     const auto separator = line.find_first_of("\t ");
     const auto smiles = line.substr(0, separator);
-    if (corpus.read == 0 && smiles == "smiles") {
+    if (loaded.read == 0 && smiles == "smiles") {
       continue;
     }
-    ++corpus.read;
+    ++loaded.read;
     if (smiles.empty()) {
-      ++corpus.failures;
+      ++loaded.failures;
       continue;
     }
     try {
+      // RDKit performs the parsing and sanitization; this function only handles
+      // the input rows and keeps the resulting molecules for repeated timings.
       auto molecule = RDKit::v2::SmilesParse::MolFromSmiles(smiles);
       if (!molecule) {
-        ++corpus.failures;
+        ++loaded.failures;
         continue;
       }
-      corpus.atoms += molecule->getNumAtoms();
-      corpus.molecules.push_back(std::move(*molecule));
+      loaded.atoms += molecule->getNumAtoms();
+      loaded.molecules.push_back(std::move(*molecule));
     } catch (const std::exception &) {
-      ++corpus.failures;
+      ++loaded.failures;
     }
   }
-  if (corpus.read != requested) {
+  if (loaded.read != requested) {
     throw std::runtime_error("input ended before the requested molecule count");
   }
-  if (corpus.molecules.empty()) {
+  if (loaded.molecules.empty()) {
     throw std::runtime_error("input produced no molecules");
   }
-  return corpus;
+  return loaded;
 }
 
-OperationResult benchmarkCanonicalSmiles(const Molecules &molecules) {
+OperationResult benchmarkCanonicalSmiles(
+    const std::vector<RDKit::ROMol> &molecules) {
   OperationResult result;
+  const RDKit::SmilesWriteParams parameters;  // canonical is true by default
   for (const auto &molecule : molecules) {
-    const auto smiles = RDKit::MolToSmiles(molecule);
+    const auto smiles = RDKit::MolToSmiles(molecule, parameters);
     result.checksum += smiles.size();
     ++result.attempts;
   }
@@ -155,7 +155,7 @@ OperationResult benchmarkCanonicalSmiles(const Molecules &molecules) {
 }
 
 OperationResult benchmarkMorgan(
-    const Molecules &molecules,
+    const std::vector<RDKit::ROMol> &molecules,
     const RDKit::FingerprintGenerator<std::uint64_t> &generator) {
   OperationResult result;
   for (const auto &molecule : molecules) {
@@ -168,7 +168,8 @@ OperationResult benchmarkMorgan(
 }
 
 OperationResult benchmarkPainsSubstructure(
-    const Molecules &molecules, const RDKit::FilterCatalog &catalog) {
+    const std::vector<RDKit::ROMol> &molecules,
+    const RDKit::FilterCatalog &catalog) {
   OperationResult result;
   for (const auto &molecule : molecules) {
     result.checksum += catalog.hasMatch(molecule);
@@ -177,7 +178,7 @@ OperationResult benchmarkPainsSubstructure(
   return result;
 }
 
-OperationResult benchmarkPickle(const Molecules &molecules) {
+OperationResult benchmarkPickle(const std::vector<RDKit::ROMol> &molecules) {
   OperationResult result;
   for (const auto &molecule : molecules) {
     std::string pickle;
@@ -189,18 +190,7 @@ OperationResult benchmarkPickle(const Molecules &molecules) {
   return result;
 }
 
-Fingerprints makeFingerprints(
-    const Molecules &molecules,
-    const RDKit::FingerprintGenerator<std::uint64_t> &generator) {
-  Fingerprints fingerprints;
-  fingerprints.reserve(molecules.size());
-  for (const auto &molecule : molecules) {
-    fingerprints.emplace_back(generator.getFingerprint(molecule));
-  }
-  return fingerprints;
-}
-
-OperationResult benchmarkEtkdg(const Molecules &molecules) {
+OperationResult benchmarkEtkdg(const std::vector<RDKit::ROMol> &molecules) {
   OperationResult result;
   for (const auto &molecule : molecules) {
     ++result.attempts;
@@ -222,23 +212,8 @@ OperationResult benchmarkEtkdg(const Molecules &molecules) {
   return result;
 }
 
-OperationResult benchmarkBulkSimilarity(const Fingerprints &fingerprints) {
-  constexpr std::size_t queryLimit = 100;
-  const auto queryCount = std::min(queryLimit, fingerprints.size());
-  OperationResult result;
-  for (std::size_t query = 0; query < queryCount; ++query) {
-    const auto queryIndex = query * fingerprints.size() / queryCount;
-    for (const auto &candidate : fingerprints) {
-      if (TanimotoSimilarity(*fingerprints[queryIndex], *candidate) >= 0.4) {
-        ++result.checksum;
-      }
-      ++result.attempts;
-    }
-  }
-  return result;
-}
-
-OperationResult benchmarkInchiRoundtrip(const Molecules &molecules) {
+OperationResult benchmarkInchiRoundtrip(
+    const std::vector<RDKit::ROMol> &molecules) {
 #ifdef RDK_BUILD_INCHI_SUPPORT
   OperationResult result;
   RDLog::LogStateSetter blockLogs;
@@ -268,7 +243,8 @@ OperationResult benchmarkInchiRoundtrip(const Molecules &molecules) {
 #endif
 }
 
-OperationResult benchmarkHsRoundtrip(const Molecules &molecules) {
+OperationResult benchmarkHsRoundtrip(
+    const std::vector<RDKit::ROMol> &molecules) {
   OperationResult result;
   for (const auto &molecule : molecules) {
     std::unique_ptr<RDKit::ROMol> withHs(RDKit::MolOps::addHs(molecule));
@@ -280,10 +256,9 @@ OperationResult benchmarkHsRoundtrip(const Molecules &molecules) {
 }
 
 OperationResult runOperation(
-    Operation operation, const Molecules &molecules,
+    Operation operation, const std::vector<RDKit::ROMol> &molecules,
     const RDKit::FilterCatalog *painsCatalog,
-    const RDKit::FingerprintGenerator<std::uint64_t> *generator,
-    const Fingerprints &fingerprints) {
+    const RDKit::FingerprintGenerator<std::uint64_t> *generator) {
   switch (operation) {
     case Operation::CanonicalSmiles:
       return benchmarkCanonicalSmiles(molecules);
@@ -301,8 +276,6 @@ OperationResult runOperation(
       return benchmarkPickle(molecules);
     case Operation::Etkdg:
       return benchmarkEtkdg(molecules);
-    case Operation::BulkSimilarity:
-      return benchmarkBulkSimilarity(fingerprints);
     case Operation::InchiRoundtrip:
       return benchmarkInchiRoundtrip(molecules);
     case Operation::HsRoundtrip:
@@ -312,10 +285,12 @@ OperationResult runOperation(
 }
 
 void printUsage(const char *program) {
-  std::cerr
-      << "Usage: " << program << " OPERATION INPUT COUNT REPEATS\n"
-      << "Operations: canonical_smiles, morgan, pains_substructure, pickle, "
-         "etkdg, bulk_similarity, inchi_roundtrip, hs_roundtrip\n";
+  std::cerr << "Usage: " << program << " OPERATION INPUT COUNT REPEATS\n"
+            << "Operations:";
+  for (const auto &option : operationOptions) {
+    std::cerr << ' ' << option.name;
+  }
+  std::cerr << '\n';
 }
 
 }  // namespace
@@ -332,33 +307,26 @@ int main(int argc, char *argv[]) {
     const auto repeats = parsePositiveInteger(argv[4], "repeat count");
 
     const auto setupStart = std::chrono::steady_clock::now();
-    auto corpus = loadCorpus(argv[2], requested);
+    auto loaded = loadMolecules(argv[2], requested);
     std::unique_ptr<RDKit::FilterCatalog> painsCatalog;
     if (operation == Operation::PainsSubstructure) {
       painsCatalog = std::make_unique<RDKit::FilterCatalog>(
           RDKit::FilterCatalogParams::PAINS);
     }
     std::unique_ptr<RDKit::FingerprintGenerator<std::uint64_t>> generator;
-    if (operation == Operation::Morgan ||
-        operation == Operation::BulkSimilarity) {
+    if (operation == Operation::Morgan) {
       generator.reset(
           RDKit::MorganFingerprint::getMorganGenerator<std::uint64_t>(2));
     }
-    Fingerprints fingerprints;
-    if (operation == Operation::BulkSimilarity) {
-      fingerprints = makeFingerprints(corpus.molecules, *generator);
-    }
-    const auto warmup =
-        runOperation(operation, corpus.molecules, painsCatalog.get(),
-                     generator.get(), fingerprints);
+    const auto warmup = runOperation(operation, loaded.molecules,
+                                     painsCatalog.get(), generator.get());
     const auto setupElapsed = std::chrono::steady_clock::now() - setupStart;
 
     OperationResult result;
     const auto start = std::chrono::steady_clock::now();
     for (std::size_t repeat = 0; repeat < repeats; ++repeat) {
-      const auto iteration =
-          runOperation(operation, corpus.molecules, painsCatalog.get(),
-                       generator.get(), fingerprints);
+      const auto iteration = runOperation(operation, loaded.molecules,
+                                          painsCatalog.get(), generator.get());
       result.checksum += iteration.checksum;
       result.attempts += iteration.attempts;
       result.failures += iteration.failures;
@@ -366,9 +334,9 @@ int main(int argc, char *argv[]) {
     const auto elapsed = std::chrono::steady_clock::now() - start;
 
     std::cout << "operation=" << argv[1] << " input=" << argv[2]
-              << " requested=" << requested << " read=" << corpus.read
-              << " parsed=" << corpus.molecules.size()
-              << " failures=" << corpus.failures << " atoms=" << corpus.atoms
+              << " requested=" << requested << " read=" << loaded.read
+              << " parsed=" << loaded.molecules.size()
+              << " failures=" << loaded.failures << " atoms=" << loaded.atoms
               << " repeats=" << repeats
               << " warmup_checksum=" << warmup.checksum
               << " warmup_operation_failures=" << warmup.failures

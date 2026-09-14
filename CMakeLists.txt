@@ -146,6 +146,8 @@ if(NOT RDK_PGO_MODE_UPPER MATCHES "^(OFF|GENERATE|USE)$")
 endif()
 
 if(NOT RDK_PGO_MODE_UPPER STREQUAL "OFF")
+  # PGO options must be present while compiling every object and linking every
+  # binary. Directory options intentionally cover all RDKit targets below.
   if(NOT IS_ABSOLUTE "${RDK_PGO_PROFILE_PATH}")
     message(FATAL_ERROR
         "RDK_PGO_PROFILE_PATH must be absolute: ${RDK_PGO_PROFILE_PATH}")

@@ -31,28 +31,29 @@ cmake -S . -B build-pgo-generate \
   -DRDK_PGO_PROFILE_PATH="$PWD/build-pgo-generate/pgo-raw" \
   -DRDK_LTO_MODE=THIN \
   -DRDK_BUILD_INCHI_SUPPORT=ON
-cmake --build build-pgo-generate --parallel 12 \
-  --target smiles_pipeline_bench chembl_ops_bench
+cmake --build build-pgo-generate --parallel 12
 ```
 
-Run workloads representative of the intended use. The two standalone drivers
-can contribute parsing and sanitization plus a mixture of common operations to
-one multi-target profile. For example:
+Run workloads representative of the intended use. The standalone drivers can
+contribute parsing and sanitization plus a mixture of common operations to one
+multi-target profile. For example:
 
 ```bash
 smiles_file=/path/to/representative.smi
 build-pgo-generate/Code/Bench/smiles_pipeline_bench \
   "$smiles_file" 135000
 for operation in canonical_smiles morgan pains_substructure pickle \
-    bulk_similarity inchi_roundtrip hs_roundtrip; do
-  build-pgo-generate/Code/Bench/chembl_ops_bench \
+    inchi_roundtrip hs_roundtrip; do
+  build-pgo-generate/Code/Bench/molecule_workloads_bench \
     "$operation" "$smiles_file" 10000 1
 done
-build-pgo-generate/Code/Bench/chembl_ops_bench \
+build-pgo-generate/Code/Bench/molecule_workloads_bench \
   etkdg "$smiles_file" 100 1
+# Use the Python interpreter configured for the instrumented RDKit build.
+python3 Code/Bench/bulk_similarity_bench.py "$smiles_file" 10000 1
 ```
 
-The corpus sizes and operation frequencies determine the profile weighting and
+The input sizes and operation frequencies determine the profile weighting and
 should model the deployment workload. ETKDG will generally use a smaller,
 representative molecule sample because conformer generation is substantially
 more expensive than the other operations.
