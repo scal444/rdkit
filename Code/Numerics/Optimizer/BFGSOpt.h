@@ -193,6 +193,7 @@ int minimize(unsigned int dim, double *pos, double gradTol,
   std::vector<double> grad(dim);
   std::vector<double> dGrad(dim);
   std::vector<double> hessDGrad(dim);
+  std::vector<double> hessGrad(dim);
   std::vector<double> xi(dim);
   std::vector<double> invHessian(dim * dim, 0);
   std::unique_ptr<double[]> newPos(new double[dim]);
@@ -216,6 +217,32 @@ int minimize(unsigned int dim, double *pos, double gradTol,
     }
     return result;
   };
+
+  const auto dualDotProduct =
+      [dim](const double *left, const double *right1, const double *right2,
+            double &result1, double &result2) {
+        constexpr unsigned int blockSize = 4;
+        double partialSums1[blockSize] = {};
+        double partialSums2[blockSize] = {};
+        unsigned int i = 0;
+        for (; i + blockSize <= dim; i += blockSize) {
+          for (unsigned int j = 0; j < blockSize; ++j) {
+            const double leftValue = left[i + j];
+            partialSums1[j] += leftValue * right1[i + j];
+            partialSums2[j] += leftValue * right2[i + j];
+          }
+        }
+        result1 = 0.0;
+        result2 = 0.0;
+        for (unsigned int j = 0; j < blockSize; ++j) {
+          result1 += partialSums1[j];
+          result2 += partialSums2[j];
+        }
+        for (; i < dim; ++i) {
+          result1 += left[i] * right1[i];
+          result2 += left[i] * right2[i];
+        }
+      };
 
   double fp = func(pos);
   gradFunc(pos, grad.data());
@@ -299,6 +326,8 @@ int minimize(unsigned int dim, double *pos, double gradTol,
 
     // BFGS inverse Hessian update.
     double fac = 0, fae = 0, sumDGrad = 0, sumXi = 0;
+    bool hessGradComputed = false;
+    bool directionComputed = false;
 #ifdef RDK_SVE_AVAILABLE
     if (cpuHasSVE()) {
       // SVE path: matrix-vector multiply and all four dot products computed in
@@ -311,13 +340,14 @@ int minimize(unsigned int dim, double *pos, double gradTol,
     {
       // Fused matrix-vector multiply and dot-product accumulation.
       for (unsigned int i = 0; i < dim; i++) {
-        hessDGrad[i] =
-            dotProduct(invHessian.data() + i * dim, dGrad.data());
+        dualDotProduct(invHessian.data() + i * dim, dGrad.data(), grad.data(),
+                       hessDGrad[i], hessGrad[i]);
         fac += dGrad[i] * xi[i];
         fae += dGrad[i] * hessDGrad[i];
         sumDGrad += dGrad[i] * dGrad[i];
         sumXi += xi[i] * xi[i];
       }
+      hessGradComputed = true;
     }
     if (fac > sqrt(EPS * sumDGrad * sumXi)) {
       fac = 1.0 / fac;
@@ -349,16 +379,37 @@ int minimize(unsigned int dim, double *pos, double gradTol,
           }
         }
       }
+
+      if (hessGradComputed) {
+        const double xiGrad = dotProduct(xi.data(), grad.data());
+        const double hessDGradGrad =
+            dotProduct(hessDGrad.data(), grad.data());
+        const double dGradGrad = dotProduct(dGrad.data(), grad.data());
+        for (unsigned int i = 0; i < dim; ++i) {
+          xi[i] = -(hessGrad[i] + fac * xi[i] * xiGrad -
+                    fad * hessDGrad[i] * hessDGradGrad +
+                    fae * dGrad[i] * dGradGrad);
+        }
+        directionComputed = true;
+      }
     }
 
+    if (hessGradComputed) {
+      if (!directionComputed) {
+        for (unsigned int i = 0; i < dim; ++i) {
+          xi[i] = -hessGrad[i];
+        }
+      }
+    } else {
 #ifdef RDK_SVE_AVAILABLE
-    if (cpuHasSVE()) {
-      sveHessianVecMulNeg(dim, invHessian.data(), grad.data(), xi.data());
-    } else
+      if (cpuHasSVE()) {
+        sveHessianVecMulNeg(dim, invHessian.data(), grad.data(), xi.data());
+      } else
 #endif
-    {
-      for (unsigned int i = 0; i < dim; i++) {
-        xi[i] = -dotProduct(invHessian.data() + i * dim, grad.data());
+      {
+        for (unsigned int i = 0; i < dim; i++) {
+          xi[i] = -dotProduct(invHessian.data() + i * dim, grad.data());
+        }
       }
     }
     if (snapshotVect && snapshotFreq && !(iter % snapshotFreq)) {
