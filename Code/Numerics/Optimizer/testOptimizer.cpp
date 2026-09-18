@@ -193,3 +193,56 @@ TEST_CASE("testBFGSOptimizationNegativeEnergy") {
   REQUIRE_THAT(oLoc[0], Catch::Matchers::WithinAbs(3.0, 1e-3));
   REQUIRE_THAT(oLoc[1], Catch::Matchers::WithinAbs(-1.0, 1e-3));
 }
+
+TEST_CASE("testBFGSOptimizationAcrossVectorWidths") {
+  // The dense rank-one term rotates the quadratic away from the coordinate
+  // axes, ensuring that convergence exercises off-diagonal Hessian updates.
+  // These dimensions cover short rows as well as all AVX2 remainder lengths.
+  for (const unsigned int dim : {1U, 2U, 3U, 4U, 5U, 7U, 8U, 9U, 16U,
+                                 17U, 32U, 33U}) {
+    std::vector<double> target(dim);
+    std::vector<double> pos(dim);
+    std::vector<double> coupling(dim);
+    for (unsigned int i = 0; i < dim; ++i) {
+      target[i] = 0.05 * (static_cast<int>(i % 7) - 3);
+      pos[i] = target[i] + 0.2 * (static_cast<int>(i % 5) - 2);
+      coupling[i] = 0.03 * (static_cast<int>(i % 3) - 1);
+    }
+
+    const auto energy = [&](double *point) {
+      double result = 0.0;
+      double coupledDisplacement = 0.0;
+      for (unsigned int i = 0; i < dim; ++i) {
+        const double displacement = point[i] - target[i];
+        const double diagonal = 1.0 + 0.1 * (i % 5);
+        result += 0.5 * diagonal * displacement * displacement;
+        coupledDisplacement += coupling[i] * displacement;
+      }
+      return result + 0.5 * coupledDisplacement * coupledDisplacement;
+    };
+    const auto gradient = [&](double *point, double *grad) {
+      double coupledDisplacement = 0.0;
+      for (unsigned int i = 0; i < dim; ++i) {
+        coupledDisplacement += coupling[i] * (point[i] - target[i]);
+      }
+      for (unsigned int i = 0; i < dim; ++i) {
+        const double diagonal = 1.0 + 0.1 * (i % 5);
+        grad[i] = diagonal * (point[i] - target[i]) +
+                  coupling[i] * coupledDisplacement;
+      }
+      return 1.0;
+    };
+
+    unsigned int numIters = 0;
+    double finalEnergy = 0.0;
+    const int status = BFGSOpt::minimize(dim, pos.data(), 1e-8, numIters,
+                                         finalEnergy, energy, gradient);
+    INFO("dimension: " << dim);
+    REQUIRE(status == 0);
+    REQUIRE(numIters < BFGSOpt::MAXITS);
+    REQUIRE_THAT(finalEnergy, Catch::Matchers::WithinAbs(0.0, 1e-12));
+    for (unsigned int i = 0; i < dim; ++i) {
+      REQUIRE_THAT(pos[i], Catch::Matchers::WithinAbs(target[i], 1e-6));
+    }
+  }
+}

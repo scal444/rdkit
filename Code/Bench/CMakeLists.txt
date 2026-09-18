@@ -9,6 +9,13 @@ add_executable(bench EXCLUDE_FROM_ALL bench_common.cpp
   stereo.cpp
   substruct_match.cpp
 )
+
+add_executable(benchMMFFMinimize EXCLUDE_FROM_ALL mmff_minimize.cpp)
+target_link_libraries(benchMMFFMinimize
+  FileParsers
+  ForceFieldHelpers
+)
+
 target_link_libraries(bench rdkitCatch
   CIPLabeler
   Descriptors

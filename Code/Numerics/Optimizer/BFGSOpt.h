@@ -198,6 +198,25 @@ int minimize(unsigned int dim, double *pos, double gradTol,
   std::unique_ptr<double[]> newPos(new double[dim]);
   snapshotFreq = std::min(snapshotFreq, maxIts);
 
+  const auto dotProduct = [dim](const double *left, const double *right) {
+    constexpr unsigned int blockSize = 8;
+    double partialSums[blockSize] = {};
+    unsigned int i = 0;
+    for (; i + blockSize <= dim; i += blockSize) {
+      for (unsigned int j = 0; j < blockSize; ++j) {
+        partialSums[j] += left[i + j] * right[i + j];
+      }
+    }
+    double result = 0.0;
+    for (double partialSum : partialSums) {
+      result += partialSum;
+    }
+    for (; i < dim; ++i) {
+      result += left[i] * right[i];
+    }
+    return result;
+  };
+
   double fp = func(pos);
   gradFunc(pos, grad.data());
 
@@ -290,17 +309,10 @@ int minimize(unsigned int dim, double *pos, double gradTol,
     } else
 #endif
     {
-      // Scalar path: fused matrix-vector multiply and dot-product accumulation.
-      // Pointer arithmetic (++ivh, ++dgj) avoids repeated index computations
-      // and helps the compiler generate efficient load sequences.
+      // Fused matrix-vector multiply and dot-product accumulation.
       for (unsigned int i = 0; i < dim; i++) {
-        double *ivh = &(invHessian[i * dim]);
-        double &hdgradi = hessDGrad[i];
-        double *dgj = dGrad.data();
-        hdgradi = 0.0;
-        for (unsigned int j = 0; j < dim; ++j, ++ivh, ++dgj) {
-          hdgradi += *ivh * *dgj;
-        }
+        hessDGrad[i] =
+            dotProduct(invHessian.data() + i * dim, dGrad.data());
         fac += dGrad[i] * xi[i];
         fae += dGrad[i] * hessDGrad[i];
         sumDGrad += dGrad[i] * dGrad[i];
@@ -323,17 +335,17 @@ int minimize(unsigned int dim, double *pos, double gradTol,
       } else
 #endif
       {
-        // Scalar path: upper-triangle-only update (j >= i) followed by
-        // explicit symmetrisation. This halves the number of Hessian writes
-        // at the cost of one additional pass over a row to mirror elements.
+        // Update complete contiguous rows. Although this evaluates both
+        // triangles, it avoids the strided symmetry-copy pass and gives the
+        // compiler a simple vector loop.
         for (unsigned int i = 0; i < dim; i++) {
           unsigned int itab = i * dim;
           double pxi = fac * xi[i], hdgi = fad * hessDGrad[i],
                  dgi = fae * dGrad[i];
-          double *pxj = &(xi[i]), *hdgj = &(hessDGrad[i]), *dgj = &(dGrad[i]);
-          for (unsigned int j = i; j < dim; ++j, ++pxj, ++hdgj, ++dgj) {
-            invHessian[itab + j] += pxi * *pxj - hdgi * *hdgj + dgi * *dgj;
-            invHessian[j * dim + i] = invHessian[itab + j];
+          double *hessianRow = invHessian.data() + itab;
+          for (unsigned int j = 0; j < dim; ++j) {
+            hessianRow[j] += pxi * xi[j] - hdgi * hessDGrad[j] +
+                             dgi * dGrad[j];
           }
         }
       }
@@ -346,14 +358,7 @@ int minimize(unsigned int dim, double *pos, double gradTol,
 #endif
     {
       for (unsigned int i = 0; i < dim; i++) {
-        unsigned int itab = i * dim;
-        xi[i] = 0.0;
-        double &pxi = xi[i];
-        double *ivh = &(invHessian[itab]);
-        double *gj = grad.data();
-        for (unsigned int j = 0; j < dim; ++j, ++ivh, ++gj) {
-          pxi -= *ivh * *gj;
-        }
+        xi[i] = -dotProduct(invHessian.data() + i * dim, grad.data());
       }
     }
     if (snapshotVect && snapshotFreq && !(iter % snapshotFreq)) {
