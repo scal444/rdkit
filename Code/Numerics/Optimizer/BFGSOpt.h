@@ -192,9 +192,11 @@ int minimize(unsigned int dim, double *pos, double gradTol,
 
   std::vector<double> grad(dim);
   std::vector<double> dGrad(dim);
-  std::vector<double> hessDGrad(dim);
   std::vector<double> xi(dim);
-  std::vector<double> invHessian(dim * dim, 0);
+  std::vector<double> stepHistory;
+  std::vector<double> gradientHistory;
+  std::vector<double> rhoHistory;
+  std::vector<double> alphaHistory;
   std::unique_ptr<double[]> newPos(new double[dim]);
   snapshotFreq = std::min(snapshotFreq, maxIts);
 
@@ -223,21 +225,14 @@ int minimize(unsigned int dim, double *pos, double gradTol,
   double sum = 0.0;
 #ifdef RDK_SVE_AVAILABLE
   if (cpuHasSVE()) {
-    // SVE path: initialise xi = -grad and compute ||pos||^2 in a single
-    // vectorised pass.  The identity inverse Hessian is initialised separately
-    // (scalar, O(dim)) since it is a simple diagonal write and does not benefit
-    // from vectorisation over rows.
+    // SVE path: initialise xi = -grad and compute ||pos||^2 in a single pass.
     sveInitXiAndSum(dim, grad.data(), xi.data(), pos, &sum);
-    for (unsigned int i = 0; i < dim; i++) invHessian[i * dim + i] = 1.0;
   } else
 #endif
   {
-    // Scalar path: initialise the inverse Hessian to the identity matrix,
-    // set the initial search direction xi = -grad (steepest descent step),
-    // and accumulate ||pos||^2 to set an appropriate maximum step size.
+    // The implicit initial inverse Hessian is the identity, so the first
+    // direction is steepest descent.
     for (unsigned int i = 0; i < dim; i++) {
-      unsigned int itab = i * dim;
-      invHessian[itab + i] = 1.0;
       xi[i] = -grad[i];
       sum += pos[i] * pos[i];
     }
@@ -297,69 +292,48 @@ int minimize(unsigned int dim, double *pos, double gradTol,
       return 0;
     }
 
-    // BFGS inverse Hessian update.
-    double fac = 0, fae = 0, sumDGrad = 0, sumXi = 0;
-#ifdef RDK_SVE_AVAILABLE
-    if (cpuHasSVE()) {
-      // SVE path: matrix-vector multiply and all four dot products computed in
-      // one vectorised pass, saving two additional O(dim) traversals compared
-      // to separate scalar dot-product calls.
-      sveHessianVecMul(dim, invHessian.data(), dGrad.data(), hessDGrad.data(),
-                       xi.data(), &fac, &fae, &sumDGrad, &sumXi);
-    } else
-#endif
-    {
-      // Fused matrix-vector multiply and dot-product accumulation.
-      for (unsigned int i = 0; i < dim; i++) {
-        hessDGrad[i] =
-            dotProduct(invHessian.data() + i * dim, dGrad.data());
-        fac += dGrad[i] * xi[i];
-        fae += dGrad[i] * hessDGrad[i];
-        sumDGrad += dGrad[i] * dGrad[i];
-        sumXi += xi[i] * xi[i];
-      }
+    // Retain every accepted BFGS correction pair. Applying all pairs with the
+    // two-loop recurrence is algebraically equivalent to explicitly updating
+    // the dense inverse Hessian, whose initial value is the identity.
+    double fac = 0.0, sumDGrad = 0.0, sumXi = 0.0;
+    for (unsigned int i = 0; i < dim; ++i) {
+      fac += dGrad[i] * xi[i];
+      sumDGrad += dGrad[i] * dGrad[i];
+      sumXi += xi[i] * xi[i];
     }
     if (fac > sqrt(EPS * sumDGrad * sumXi)) {
-      fac = 1.0 / fac;
-      double fad = 1.0 / fae;
-      for (unsigned int i = 0; i < dim; i++) {
-        dGrad[i] = fac * xi[i] - fad * hessDGrad[i];
-      }
-
-#ifdef RDK_SVE_AVAILABLE
-      if (cpuHasSVE()) {
-        // SVE path: symmetric rank-1 update with FMA, exploiting symmetry to
-        // halve memory writes and FLOPs versus a full-matrix update
-        sveHessianRank1Update(dim, invHessian.data(), xi.data(),
-                              hessDGrad.data(), dGrad.data(), fac, fad, fae);
-      } else
-#endif
-      {
-        // Update complete contiguous rows. Although this evaluates both
-        // triangles, it avoids the strided symmetry-copy pass and gives the
-        // compiler a simple vector loop.
-        for (unsigned int i = 0; i < dim; i++) {
-          unsigned int itab = i * dim;
-          double pxi = fac * xi[i], hdgi = fad * hessDGrad[i],
-                 dgi = fae * dGrad[i];
-          double *hessianRow = invHessian.data() + itab;
-          for (unsigned int j = 0; j < dim; ++j) {
-            hessianRow[j] += pxi * xi[j] - hdgi * hessDGrad[j] +
-                             dgi * dGrad[j];
-          }
-        }
-      }
+      stepHistory.insert(stepHistory.end(), xi.begin(), xi.end());
+      gradientHistory.insert(gradientHistory.end(), dGrad.begin(), dGrad.end());
+      rhoHistory.push_back(1.0 / fac);
     }
 
-#ifdef RDK_SVE_AVAILABLE
-    if (cpuHasSVE()) {
-      sveHessianVecMulNeg(dim, invHessian.data(), grad.data(), xi.data());
-    } else
-#endif
-    {
-      for (unsigned int i = 0; i < dim; i++) {
-        xi[i] = -dotProduct(invHessian.data() + i * dim, grad.data());
+    std::copy(grad.begin(), grad.end(), xi.begin());
+    alphaHistory.resize(rhoHistory.size());
+    for (size_t historyIndex = rhoHistory.size(); historyIndex-- > 0;) {
+      const double *step = stepHistory.data() + historyIndex * dim;
+      const double *gradientDelta =
+          gradientHistory.data() + historyIndex * dim;
+      const double alpha =
+          rhoHistory[historyIndex] * dotProduct(step, xi.data());
+      alphaHistory[historyIndex] = alpha;
+      for (unsigned int i = 0; i < dim; ++i) {
+        xi[i] -= alpha * gradientDelta[i];
       }
+    }
+    for (size_t historyIndex = 0; historyIndex < rhoHistory.size();
+         ++historyIndex) {
+      const double *step = stepHistory.data() + historyIndex * dim;
+      const double *gradientDelta =
+          gradientHistory.data() + historyIndex * dim;
+      const double beta = rhoHistory[historyIndex] *
+                          dotProduct(gradientDelta, xi.data());
+      const double coefficient = alphaHistory[historyIndex] - beta;
+      for (unsigned int i = 0; i < dim; ++i) {
+        xi[i] += coefficient * step[i];
+      }
+    }
+    for (double &directionElement : xi) {
+      directionElement = -directionElement;
     }
     if (snapshotVect && snapshotFreq && !(iter % snapshotFreq)) {
       RDKit::Snapshot s(boost::shared_array<double>(newPos.release()), fp);
