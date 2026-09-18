@@ -210,7 +210,7 @@ int minimize(unsigned int dim, double *pos, double gradTol,
   const auto packedHessianDualVecMul =
       [dim](const double *hessian, const double *vector1,
             const double *vector2, double *result1, double *result2) {
-        constexpr unsigned int blockSize = 4;
+        constexpr unsigned int blockSize = 8;
         std::fill(result1, result1 + dim, 0.0);
         std::fill(result2, result2 + dim, 0.0);
         size_t rowOffset = 0;
