@@ -209,29 +209,30 @@ int minimize(unsigned int dim, double *pos, double gradTol,
   const auto packedHessianVecMul =
       [dim](const double *hessian, const double *vector, double *result) {
         constexpr unsigned int blockSize = 8;
+        std::fill(result, result + dim, 0.0);
+        size_t rowOffset = 0;
         for (unsigned int i = 0; i < dim; ++i) {
-          const size_t rowOffset = static_cast<size_t>(i) * (i + 1) / 2;
           const double *row = hessian + rowOffset;
+          const double vectorI = vector[i];
           double partialSums[blockSize] = {};
           unsigned int j = 0;
-          for (; j + blockSize <= i + 1; j += blockSize) {
+          for (; j + blockSize <= i; j += blockSize) {
             for (unsigned int k = 0; k < blockSize; ++k) {
-              partialSums[k] += row[j + k] * vector[j + k];
+              const double hessianValue = row[j + k];
+              partialSums[k] += hessianValue * vector[j + k];
+              result[j + k] += hessianValue * vectorI;
             }
           }
-          double rowSum = 0.0;
+          double rowSum = row[i] * vectorI;
           for (double partialSum : partialSums) {
             rowSum += partialSum;
           }
-          for (; j <= i; ++j) {
+          for (; j < i; ++j) {
             rowSum += row[j] * vector[j];
-          }
-          size_t columnOffset = rowOffset + 2 * i + 1;
-          for (j = i + 1; j < dim; ++j) {
-            rowSum += hessian[columnOffset] * vector[j];
-            columnOffset += j + 1;
+            result[j] += row[j] * vectorI;
           }
           result[i] = rowSum;
+          rowOffset += i + 1;
         }
       };
 
