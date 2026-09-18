@@ -194,28 +194,97 @@ int minimize(unsigned int dim, double *pos, double gradTol,
   std::vector<double> dGrad(dim);
   std::vector<double> hessDGrad(dim);
   std::vector<double> xi(dim);
-  std::vector<double> invHessian(dim * dim, 0);
+  constexpr unsigned int hessianBlockSize = 16;
+  constexpr size_t hessianBlockElements =
+      hessianBlockSize * hessianBlockSize;
+  const unsigned int numHessianBlocks =
+      (dim + hessianBlockSize - 1) / hessianBlockSize;
+  bool useBlockedHessian = true;
+#ifdef RDK_SVE_AVAILABLE
+  // Keep the full row-major matrix expected by the SVE kernels.
+  useBlockedHessian = !cpuHasSVE();
+#endif
+  const size_t hessianSize =
+      useBlockedHessian
+          ? static_cast<size_t>(numHessianBlocks) *
+                (numHessianBlocks + 1) / 2 * hessianBlockElements
+          : static_cast<size_t>(dim) * dim;
+  std::vector<double> invHessian(hessianSize, 0);
   std::unique_ptr<double[]> newPos(new double[dim]);
   snapshotFreq = std::min(snapshotFreq, maxIts);
 
-  const auto dotProduct = [dim](const double *left, const double *right) {
-    constexpr unsigned int blockSize = 8;
-    double partialSums[blockSize] = {};
-    unsigned int i = 0;
-    for (; i + blockSize <= dim; i += blockSize) {
-      for (unsigned int j = 0; j < blockSize; ++j) {
-        partialSums[j] += left[i + j] * right[i + j];
-      }
-    }
-    double result = 0.0;
-    for (double partialSum : partialSums) {
-      result += partialSum;
-    }
-    for (; i < dim; ++i) {
-      result += left[i] * right[i];
-    }
-    return result;
-  };
+  const auto blockedHessianVecMul =
+      [=](const double *hessian, const double *vector, double *result) {
+        std::fill(result, result + dim, 0.0);
+        for (unsigned int blockRow = 0; blockRow < numHessianBlocks;
+             ++blockRow) {
+          const unsigned int rowBegin = blockRow * hessianBlockSize;
+          const unsigned int numRows =
+              std::min(hessianBlockSize, dim - rowBegin);
+          for (unsigned int blockColumn = 0; blockColumn <= blockRow;
+               ++blockColumn) {
+            const unsigned int columnBegin =
+                blockColumn * hessianBlockSize;
+            const unsigned int numColumns =
+                std::min(hessianBlockSize, dim - columnBegin);
+            const size_t blockIndex =
+                static_cast<size_t>(blockRow) * (blockRow + 1) / 2 +
+                blockColumn;
+            const double *block =
+                hessian + blockIndex * hessianBlockElements;
+
+            if (blockColumn == blockRow) {
+              for (unsigned int row = 0; row < numRows; ++row) {
+                double partialSums[8] = {};
+                unsigned int column = 0;
+                for (; column + 8 <= numColumns; column += 8) {
+                  for (unsigned int k = 0; k < 8; ++k) {
+                    partialSums[k] +=
+                        block[row * hessianBlockSize + column + k] *
+                        vector[columnBegin + column + k];
+                  }
+                }
+                double rowSum = 0.0;
+                for (double partialSum : partialSums) {
+                  rowSum += partialSum;
+                }
+                for (; column < numColumns; ++column) {
+                  rowSum += block[row * hessianBlockSize + column] *
+                            vector[columnBegin + column];
+                }
+                result[rowBegin + row] += rowSum;
+              }
+            } else {
+              for (unsigned int row = 0; row < numRows; ++row) {
+                const double *blockRowValues =
+                    block + row * hessianBlockSize;
+                const double vectorRow = vector[rowBegin + row];
+                double partialSums[8] = {};
+                unsigned int column = 0;
+                for (; column + 8 <= numColumns; column += 8) {
+                  for (unsigned int k = 0; k < 8; ++k) {
+                    const double hessianValue = blockRowValues[column + k];
+                    partialSums[k] +=
+                        hessianValue * vector[columnBegin + column + k];
+                    result[columnBegin + column + k] +=
+                        hessianValue * vectorRow;
+                  }
+                }
+                double rowSum = 0.0;
+                for (double partialSum : partialSums) {
+                  rowSum += partialSum;
+                }
+                for (; column < numColumns; ++column) {
+                  const double hessianValue = blockRowValues[column];
+                  rowSum += hessianValue * vector[columnBegin + column];
+                  result[columnBegin + column] += hessianValue * vectorRow;
+                }
+                result[rowBegin + row] += rowSum;
+              }
+            }
+          }
+        }
+      };
 
   double fp = func(pos);
   gradFunc(pos, grad.data());
@@ -236,8 +305,12 @@ int minimize(unsigned int dim, double *pos, double gradTol,
     // set the initial search direction xi = -grad (steepest descent step),
     // and accumulate ||pos||^2 to set an appropriate maximum step size.
     for (unsigned int i = 0; i < dim; i++) {
-      unsigned int itab = i * dim;
-      invHessian[itab + i] = 1.0;
+      const unsigned int block = i / hessianBlockSize;
+      const unsigned int local = i % hessianBlockSize;
+      const size_t blockIndex =
+          static_cast<size_t>(block) * (block + 1) / 2 + block;
+      invHessian[blockIndex * hessianBlockElements +
+                 local * hessianBlockSize + local] = 1.0;
       xi[i] = -grad[i];
       sum += pos[i] * pos[i];
     }
@@ -310,9 +383,9 @@ int minimize(unsigned int dim, double *pos, double gradTol,
 #endif
     {
       // Fused matrix-vector multiply and dot-product accumulation.
+      blockedHessianVecMul(invHessian.data(), dGrad.data(),
+                           hessDGrad.data());
       for (unsigned int i = 0; i < dim; i++) {
-        hessDGrad[i] =
-            dotProduct(invHessian.data() + i * dim, dGrad.data());
         fac += dGrad[i] * xi[i];
         fae += dGrad[i] * hessDGrad[i];
         sumDGrad += dGrad[i] * dGrad[i];
@@ -335,17 +408,36 @@ int minimize(unsigned int dim, double *pos, double gradTol,
       } else
 #endif
       {
-        // Update complete contiguous rows. Although this evaluates both
-        // triangles, it avoids the strided symmetry-copy pass and gives the
-        // compiler a simple vector loop.
-        for (unsigned int i = 0; i < dim; i++) {
-          unsigned int itab = i * dim;
-          double pxi = fac * xi[i], hdgi = fad * hessDGrad[i],
-                 dgi = fae * dGrad[i];
-          double *hessianRow = invHessian.data() + itab;
-          for (unsigned int j = 0; j < dim; ++j) {
-            hessianRow[j] += pxi * xi[j] - hdgi * hessDGrad[j] +
-                             dgi * dGrad[j];
+        // Off-diagonal blocks store only the lower triangle. Diagonal blocks
+        // remain full so every inner loop is contiguous and vectorizable.
+        for (unsigned int blockRow = 0; blockRow < numHessianBlocks;
+             ++blockRow) {
+          const unsigned int rowBegin = blockRow * hessianBlockSize;
+          const unsigned int numRows =
+              std::min(hessianBlockSize, dim - rowBegin);
+          for (unsigned int blockColumn = 0; blockColumn <= blockRow;
+               ++blockColumn) {
+            const unsigned int columnBegin =
+                blockColumn * hessianBlockSize;
+            const unsigned int numColumns =
+                std::min(hessianBlockSize, dim - columnBegin);
+            const size_t blockIndex =
+                static_cast<size_t>(blockRow) * (blockRow + 1) / 2 +
+                blockColumn;
+            double *hessianBlock =
+                invHessian.data() + blockIndex * hessianBlockElements;
+            for (unsigned int row = 0; row < numRows; ++row) {
+              const unsigned int i = rowBegin + row;
+              const double pxi = fac * xi[i];
+              const double hdgi = fad * hessDGrad[i];
+              const double dgi = fae * dGrad[i];
+              double *hessianRow = hessianBlock + row * hessianBlockSize;
+              for (unsigned int column = 0; column < numColumns; ++column) {
+                const unsigned int j = columnBegin + column;
+                hessianRow[column] +=
+                    pxi * xi[j] - hdgi * hessDGrad[j] + dgi * dGrad[j];
+              }
+            }
           }
         }
       }
@@ -357,8 +449,9 @@ int minimize(unsigned int dim, double *pos, double gradTol,
     } else
 #endif
     {
-      for (unsigned int i = 0; i < dim; i++) {
-        xi[i] = -dotProduct(invHessian.data() + i * dim, grad.data());
+      blockedHessianVecMul(invHessian.data(), grad.data(), xi.data());
+      for (unsigned int i = 0; i < dim; ++i) {
+        xi[i] = -xi[i];
       }
     }
     if (snapshotVect && snapshotFreq && !(iter % snapshotFreq)) {
