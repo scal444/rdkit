@@ -194,28 +194,46 @@ int minimize(unsigned int dim, double *pos, double gradTol,
   std::vector<double> dGrad(dim);
   std::vector<double> hessDGrad(dim);
   std::vector<double> xi(dim);
-  std::vector<double> invHessian(dim * dim, 0);
+  bool usePackedHessian = true;
+#ifdef RDK_SVE_AVAILABLE
+  // Keep the full matrix layout used by the hand-vectorized SVE kernels.
+  usePackedHessian = !cpuHasSVE();
+#endif
+  const size_t hessianSize =
+      usePackedHessian ? static_cast<size_t>(dim) * (dim + 1) / 2
+                       : static_cast<size_t>(dim) * dim;
+  std::vector<double> invHessian(hessianSize, 0);
   std::unique_ptr<double[]> newPos(new double[dim]);
   snapshotFreq = std::min(snapshotFreq, maxIts);
 
-  const auto dotProduct = [dim](const double *left, const double *right) {
-    constexpr unsigned int blockSize = 8;
-    double partialSums[blockSize] = {};
-    unsigned int i = 0;
-    for (; i + blockSize <= dim; i += blockSize) {
-      for (unsigned int j = 0; j < blockSize; ++j) {
-        partialSums[j] += left[i + j] * right[i + j];
-      }
-    }
-    double result = 0.0;
-    for (double partialSum : partialSums) {
-      result += partialSum;
-    }
-    for (; i < dim; ++i) {
-      result += left[i] * right[i];
-    }
-    return result;
-  };
+  const auto packedHessianVecMul =
+      [dim](const double *hessian, const double *vector, double *result) {
+        constexpr unsigned int blockSize = 8;
+        for (unsigned int i = 0; i < dim; ++i) {
+          const size_t rowOffset = static_cast<size_t>(i) * (i + 1) / 2;
+          const double *row = hessian + rowOffset;
+          double partialSums[blockSize] = {};
+          unsigned int j = 0;
+          for (; j + blockSize <= i + 1; j += blockSize) {
+            for (unsigned int k = 0; k < blockSize; ++k) {
+              partialSums[k] += row[j + k] * vector[j + k];
+            }
+          }
+          double rowSum = 0.0;
+          for (double partialSum : partialSums) {
+            rowSum += partialSum;
+          }
+          for (; j <= i; ++j) {
+            rowSum += row[j] * vector[j];
+          }
+          size_t columnOffset = rowOffset + 2 * i + 1;
+          for (j = i + 1; j < dim; ++j) {
+            rowSum += hessian[columnOffset] * vector[j];
+            columnOffset += j + 1;
+          }
+          result[i] = rowSum;
+        }
+      };
 
   double fp = func(pos);
   gradFunc(pos, grad.data());
@@ -235,11 +253,12 @@ int minimize(unsigned int dim, double *pos, double gradTol,
     // Scalar path: initialise the inverse Hessian to the identity matrix,
     // set the initial search direction xi = -grad (steepest descent step),
     // and accumulate ||pos||^2 to set an appropriate maximum step size.
+    size_t rowOffset = 0;
     for (unsigned int i = 0; i < dim; i++) {
-      unsigned int itab = i * dim;
-      invHessian[itab + i] = 1.0;
+      invHessian[rowOffset + i] = 1.0;
       xi[i] = -grad[i];
       sum += pos[i] * pos[i];
+      rowOffset += i + 1;
     }
   }
   double maxStep = MAXSTEP * std::max(sqrt(sum), static_cast<double>(dim));
@@ -310,9 +329,9 @@ int minimize(unsigned int dim, double *pos, double gradTol,
 #endif
     {
       // Fused matrix-vector multiply and dot-product accumulation.
+      packedHessianVecMul(invHessian.data(), dGrad.data(),
+                          hessDGrad.data());
       for (unsigned int i = 0; i < dim; i++) {
-        hessDGrad[i] =
-            dotProduct(invHessian.data() + i * dim, dGrad.data());
         fac += dGrad[i] * xi[i];
         fae += dGrad[i] * hessDGrad[i];
         sumDGrad += dGrad[i] * dGrad[i];
@@ -335,18 +354,19 @@ int minimize(unsigned int dim, double *pos, double gradTol,
       } else
 #endif
       {
-        // Update complete contiguous rows. Although this evaluates both
-        // triangles, it avoids the strided symmetry-copy pass and gives the
-        // compiler a simple vector loop.
+        // Store and update only the lower triangle. Each row remains
+        // contiguous, preserving a simple vector loop while halving both the
+        // Hessian footprint and the number of update elements.
+        size_t rowOffset = 0;
         for (unsigned int i = 0; i < dim; i++) {
-          unsigned int itab = i * dim;
           double pxi = fac * xi[i], hdgi = fad * hessDGrad[i],
                  dgi = fae * dGrad[i];
-          double *hessianRow = invHessian.data() + itab;
-          for (unsigned int j = 0; j < dim; ++j) {
+          double *hessianRow = invHessian.data() + rowOffset;
+          for (unsigned int j = 0; j <= i; ++j) {
             hessianRow[j] += pxi * xi[j] - hdgi * hessDGrad[j] +
                              dgi * dGrad[j];
           }
+          rowOffset += i + 1;
         }
       }
     }
@@ -357,8 +377,9 @@ int minimize(unsigned int dim, double *pos, double gradTol,
     } else
 #endif
     {
-      for (unsigned int i = 0; i < dim; i++) {
-        xi[i] = -dotProduct(invHessian.data() + i * dim, grad.data());
+      packedHessianVecMul(invHessian.data(), grad.data(), xi.data());
+      for (unsigned int i = 0; i < dim; ++i) {
+        xi[i] = -xi[i];
       }
     }
     if (snapshotVect && snapshotFreq && !(iter % snapshotFreq)) {
