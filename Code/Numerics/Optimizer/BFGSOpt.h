@@ -193,6 +193,7 @@ int minimize(unsigned int dim, double *pos, double gradTol,
   std::vector<double> grad(dim);
   std::vector<double> dGrad(dim);
   std::vector<double> hessDGrad(dim);
+  std::vector<double> hessGrad(dim);
   std::vector<double> xi(dim);
   bool usePackedHessian = true;
 #ifdef RDK_SVE_AVAILABLE
@@ -206,32 +207,44 @@ int minimize(unsigned int dim, double *pos, double gradTol,
   std::unique_ptr<double[]> newPos(new double[dim]);
   snapshotFreq = std::min(snapshotFreq, maxIts);
 
-  const auto packedHessianVecMul =
-      [dim](const double *hessian, const double *vector, double *result) {
-        constexpr unsigned int blockSize = 8;
-        std::fill(result, result + dim, 0.0);
+  const auto packedHessianDualVecMul =
+      [dim](const double *hessian, const double *vector1,
+            const double *vector2, double *result1, double *result2) {
+        constexpr unsigned int blockSize = 4;
+        std::fill(result1, result1 + dim, 0.0);
+        std::fill(result2, result2 + dim, 0.0);
         size_t rowOffset = 0;
         for (unsigned int i = 0; i < dim; ++i) {
           const double *row = hessian + rowOffset;
-          const double vectorI = vector[i];
-          double partialSums[blockSize] = {};
+          const double vector1I = vector1[i];
+          const double vector2I = vector2[i];
+          double partialSums1[blockSize] = {};
+          double partialSums2[blockSize] = {};
           unsigned int j = 0;
           for (; j + blockSize <= i; j += blockSize) {
             for (unsigned int k = 0; k < blockSize; ++k) {
               const double hessianValue = row[j + k];
-              partialSums[k] += hessianValue * vector[j + k];
-              result[j + k] += hessianValue * vectorI;
+              partialSums1[k] += hessianValue * vector1[j + k];
+              partialSums2[k] += hessianValue * vector2[j + k];
+              result1[j + k] += hessianValue * vector1I;
+              result2[j + k] += hessianValue * vector2I;
             }
           }
-          double rowSum = row[i] * vectorI;
-          for (double partialSum : partialSums) {
-            rowSum += partialSum;
+          double rowSum1 = row[i] * vector1I;
+          double rowSum2 = row[i] * vector2I;
+          for (unsigned int k = 0; k < blockSize; ++k) {
+            rowSum1 += partialSums1[k];
+            rowSum2 += partialSums2[k];
           }
           for (; j < i; ++j) {
-            rowSum += row[j] * vector[j];
-            result[j] += row[j] * vectorI;
+            const double hessianValue = row[j];
+            rowSum1 += hessianValue * vector1[j];
+            rowSum2 += hessianValue * vector2[j];
+            result1[j] += hessianValue * vector1I;
+            result2[j] += hessianValue * vector2I;
           }
-          result[i] = rowSum;
+          result1[i] = rowSum1;
+          result2[i] = rowSum2;
           rowOffset += i + 1;
         }
       };
@@ -319,6 +332,8 @@ int minimize(unsigned int dim, double *pos, double gradTol,
 
     // BFGS inverse Hessian update.
     double fac = 0, fae = 0, sumDGrad = 0, sumXi = 0;
+    bool hessGradComputed = false;
+    bool directionComputed = false;
 #ifdef RDK_SVE_AVAILABLE
     if (cpuHasSVE()) {
       // SVE path: matrix-vector multiply and all four dot products computed in
@@ -330,14 +345,15 @@ int minimize(unsigned int dim, double *pos, double gradTol,
 #endif
     {
       // Fused matrix-vector multiply and dot-product accumulation.
-      packedHessianVecMul(invHessian.data(), dGrad.data(),
-                          hessDGrad.data());
+      packedHessianDualVecMul(invHessian.data(), dGrad.data(), grad.data(),
+                              hessDGrad.data(), hessGrad.data());
       for (unsigned int i = 0; i < dim; i++) {
         fac += dGrad[i] * xi[i];
         fae += dGrad[i] * hessDGrad[i];
         sumDGrad += dGrad[i] * dGrad[i];
         sumXi += xi[i] * xi[i];
       }
+      hessGradComputed = true;
     }
     if (fac > sqrt(EPS * sumDGrad * sumXi)) {
       fac = 1.0 / fac;
@@ -370,17 +386,43 @@ int minimize(unsigned int dim, double *pos, double gradTol,
           rowOffset += i + 1;
         }
       }
+
+      if (hessGradComputed) {
+        double xiGrad = 0.0;
+        double hessDGradGrad = 0.0;
+        double dGradGrad = 0.0;
+        for (unsigned int i = 0; i < dim; ++i) {
+          xiGrad += xi[i] * grad[i];
+          hessDGradGrad += hessDGrad[i] * grad[i];
+          dGradGrad += dGrad[i] * grad[i];
+        }
+        for (unsigned int i = 0; i < dim; ++i) {
+          xi[i] = -(hessGrad[i] + fac * xi[i] * xiGrad -
+                    fad * hessDGrad[i] * hessDGradGrad +
+                    fae * dGrad[i] * dGradGrad);
+        }
+        directionComputed = true;
+      }
     }
 
+    if (hessGradComputed) {
+      if (!directionComputed) {
+        for (unsigned int i = 0; i < dim; ++i) {
+          xi[i] = -hessGrad[i];
+        }
+      }
+    } else {
 #ifdef RDK_SVE_AVAILABLE
-    if (cpuHasSVE()) {
-      sveHessianVecMulNeg(dim, invHessian.data(), grad.data(), xi.data());
-    } else
+      if (cpuHasSVE()) {
+        sveHessianVecMulNeg(dim, invHessian.data(), grad.data(), xi.data());
+      } else
 #endif
-    {
-      packedHessianVecMul(invHessian.data(), grad.data(), xi.data());
-      for (unsigned int i = 0; i < dim; ++i) {
-        xi[i] = -xi[i];
+      {
+        packedHessianDualVecMul(invHessian.data(), grad.data(), grad.data(),
+                                xi.data(), hessGrad.data());
+        for (unsigned int i = 0; i < dim; ++i) {
+          xi[i] = -xi[i];
+        }
       }
     }
     if (snapshotVect && snapshotFreq && !(iter % snapshotFreq)) {
