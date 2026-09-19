@@ -5,6 +5,7 @@ rdkit_library(DistGeomHelpers BoundsMatrixBuilder.cpp Embedder.cpp EmbedderUtils
 target_compile_definitions(DistGeomHelpers PRIVATE RDKIT_DISTGEOMHELPERS_BUILD)
 
 rdkit_headers(BoundsMatrixBuilder.h
+              BoundsMatrixBuilderDetails.h
               Embedder.h DEST GraphMol/DistGeomHelpers)
 
 rdkit_catch_test(testDistGeomHelpers testDgeomHelpers.cpp
