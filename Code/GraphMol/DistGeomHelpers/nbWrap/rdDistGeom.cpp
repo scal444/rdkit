@@ -133,7 +133,8 @@ static int EmbedMolecule(ROMol &mol, unsigned int maxAttempts, int seed,
   return res;
 }
 
-static int EmbedMolecule2(ROMol &mol, PyEmbedParameters &params) {
+static int EmbedMolecule2(ROMol &mol,
+                          DGeomHelpers::EmbedParameters &params) {
   int res;
   {
     nb::gil_scoped_release release;
@@ -197,7 +198,7 @@ static INT_VECT EmbedMultipleConfs(
 }
 
 static INT_VECT EmbedMultipleConfs2(ROMol &mol, unsigned int numConfs,
-                                    PyEmbedParameters &params) {
+                                    DGeomHelpers::EmbedParameters &params) {
   INT_VECT res;
   {
     nb::gil_scoped_release release;
@@ -211,8 +212,9 @@ static INT_VECT EmbedMultipleConfs2(ROMol &mol, unsigned int numConfs,
 }
 
 static nb::ndarray<nb::numpy, double, nb::ndim<2>> getMolBoundsMatrix2(
-    const ROMol &mol, const PyEmbedParameters &params, bool doTriangleSmoothing,
-    bool scaleVDW, bool set15bounds, bool set14bounds, bool set13bounds) {
+    const ROMol &mol, const DGeomHelpers::EmbedParameters &params,
+    bool doTriangleSmoothing, bool scaleVDW, bool set15bounds,
+    bool set14bounds, bool set13bounds) {
   unsigned int nats = mol.getNumAtoms();
   DistGeom::BoundsMatPtr mat(new DistGeom::BoundsMatrix(nats));
   DGeomHelpers::initBoundsMat(mat);
@@ -293,7 +295,8 @@ distance geometry)DOC";
 
   m.def(
       "GetExperimentalTorsions",
-      [](const RDKit::ROMol &mol, const PyEmbedParameters &ps) {
+      [](const RDKit::ROMol &mol,
+         const RDKit::DGeomHelpers::EmbedParameters &ps) {
         return RDKit::getExpTorsHelper(
             mol, ps.useExpTorsionAnglePrefs, ps.useSmallRingTorsions,
             ps.useMacrocycleTorsions, ps.useBasicKnowledge, ps.ETversion,
@@ -493,8 +496,10 @@ RETURNS:
       },
       "legacyImplementation"_a = true);
 
-  nb::class_<PyEmbedParameters>(m, "EmbedParameters",
-                                "Parameters controlling embedding")
+  using EmbedParameters = RDKit::DGeomHelpers::EmbedParameters;
+  nb::class_<EmbedParameters>(m, "_EmbedParametersBase");
+  nb::class_<PyEmbedParameters, EmbedParameters>(
+      m, "EmbedParameters", "Parameters controlling embedding")
       .def(nb::init<>())
       .def_rw("maxIterations", &PyEmbedParameters::maxIterations,
               R"DOC(maximum number of embedding attempts to use for a
@@ -710,7 +715,9 @@ RETURNS:
 
   m.def(
       "EmbedParametersToJSON",
-      [](const PyEmbedParameters &ps) { return embedParametersToJSON(ps); },
+      [](const RDKit::DGeomHelpers::EmbedParameters &ps) {
+        return embedParametersToJSON(ps);
+      },
       "embedParameters"_a,
       R"DOC(Returns json string containing embedParameters attributes
 
