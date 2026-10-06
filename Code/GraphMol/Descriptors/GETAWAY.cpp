@@ -50,6 +50,7 @@
 #include <Eigen/Dense>
 #include <Eigen/SVD>
 #include <deque>
+#include <set>
 #include <Eigen/Core>
 #include <Eigen/QR>
 
@@ -356,16 +357,18 @@ void getGETAWAYDescCustom(MatrixXd H, MatrixXd R, MatrixXd Adj, int numAtoms,
       MolOps::getDistanceMat(mol, false);  // need to be be set to false to have
   // topological distance not weighted!
 
-  Map<MatrixXd> D2(dist, numAtoms, numAtoms);
-
-  double Dmax = D2.colwise().maxCoeff().maxCoeff();
-
   HATSct = 0.0;
   H0ct = 0.0;
   R0ct = 0.0;
 
-  // need to loop other all the D values so <= not <!
-  for (int i = 0; i <= Dmax; i++) {
+  // Visit only the distances that occur: atoms in different fragments are 1e8
+  // apart, so looping over every integer up to the maximum would not finish.
+  std::set<double> distances{0.0};
+  for (int j = 0; j < numAtoms - 1; ++j) {
+    distances.insert(dist + j * numAtoms + j + 1, dist + (j + 1) * numAtoms);
+  }
+  for (const double distance : distances) {
+    const int i = static_cast<int>(distance);
     if (i == 0) {
       Bi = H.diagonal().asDiagonal();
     }
@@ -614,10 +617,6 @@ void getGETAWAYDesc(MatrixXd H, MatrixXd R, MatrixXd Adj, int numAtoms,
       MolOps::getDistanceMat(mol, false);  // need to be be set to false to have
                                            // topological distance not weighted!
 
-  Map<MatrixXd> D2(dist, numAtoms, numAtoms);
-
-  double Dmax = D2.colwise().maxCoeff().maxCoeff();
-
   HATSut = 0.0;
   HATSmt = 0.0;
   HATSvt = 0.0;
@@ -642,8 +641,14 @@ void getGETAWAYDesc(MatrixXd H, MatrixXd R, MatrixXd Adj, int numAtoms,
   R0it = 0.0;
   R0st = 0.0;
 
-  // need to loop other all the D values so <= not <!
-  for (int i = 0; i <= Dmax; i++) {
+  // Visit only the distances that occur: atoms in different fragments are 1e8
+  // apart, so looping over every integer up to the maximum would not finish.
+  std::set<double> distances{0.0};
+  for (int j = 0; j < numAtoms - 1; ++j) {
+    distances.insert(dist + j * numAtoms + j + 1, dist + (j + 1) * numAtoms);
+  }
+  for (const double distance : distances) {
+    const int i = static_cast<int>(distance);
     if (i == 0) {
       Bi = H.diagonal().asDiagonal();
     }

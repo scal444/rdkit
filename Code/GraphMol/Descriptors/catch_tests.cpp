@@ -758,4 +758,25 @@ TEST_CASE("Github #7264: GETAWAY descriptors are non-deterministic") {
     }
   }
 }
+
+TEST_CASE("GETAWAY on molecules with several fragments") {
+  // Atoms in different fragments are a very large topological distance apart;
+  // they only contribute to the totals, which therefore match those of the
+  // connected molecule with the same atoms and coordinates.
+  const std::string coords =
+      " |(-1.2,0.1,0.3;0.2,-0.4,0.1;1.1,0.6,-0.3;2.4,0.2,0.4)|";
+  auto salt = v2::SmilesParse::MolFromSmiles("CCO.C" + coords);
+  auto connected = v2::SmilesParse::MolFromSmiles("CCOC" + coords);
+  REQUIRE(salt);
+  REQUIRE(connected);
+  std::vector<double> saltRes, connectedRes;
+  Descriptors::GETAWAY(*salt, saltRes);
+  Descriptors::GETAWAY(*connected, connectedRes);
+  REQUIRE(saltRes.size() == 273);
+  // HTu, HATSu and RTu: totals of the unweighted channel.
+  for (const auto idx : {13, 23, 155}) {
+    INFO(idx);
+    CHECK(saltRes[idx] == connectedRes[idx]);
+  }
+}
 #endif
