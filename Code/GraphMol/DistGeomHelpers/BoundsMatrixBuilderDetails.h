@@ -8,99 +8,20 @@
 //  which is included in the file license.txt, found at the root
 //  of the RDKit source tree.
 //
-#include "DistGeom/ZMatrixUtils.h"
-#include "RDGeneral/Invariant.h"
-#include <vector>
-#include <optional>
-#include <vector>
-#include <ranges>
-#include <algorithm>
-#include "RDGeneral/Invariant.h"
-
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
 #ifndef RD_BOUNDS_MATRIX_BUILDER_DETAILS_H
 #define RD_BOUNDS_MATRIX_BUILDER_DETAILS_H
 
+#include "BoundsMatrixBuilder.h"
+#include <RDGeneral/Invariant.h>
+#include <algorithm>
+#include <array>
+#include <optional>
+#include <ostream>
+#include <ranges>
+#include <vector>
+
 namespace RDKit {
 namespace DGeomHelpers {
-enum class TorsionType {
-  CIS = 0,
-  TRANS,
-  FLEXIBLE,
-  CUSTOM,
-  CISTRANS
-};
-
-enum class Type14 {
-  IN_CHAIN,
-  IN_RING,
-  TWO_IN_SAME_RING,
-  TWO_IN_DIFF_RING,
-  SHARE_RING_BOND,
-  MACROCYCLE_TWO_IN_SAME_RING,
-  MACROCYCLE_ALL_IN_SAME_RING
-};
-
-struct TorsionValue {
-  TorsionType type = TorsionType::FLEXIBLE;
-  std::optional<double> value = {};
-  std::optional<double> extraDist = {};
-  bool isForced = false;
-};
-
-inline DistGeom::TorsionRange ringTorsion(const std::size_t rSize) {
-  double torsion = M_PI;
-  switch (rSize) {
-    case 4u:
-      [[fallthrough]];
-    case 5u:
-      torsion = M_PI * 45.0 / 180.0;
-      break;
-    case 6u:
-      torsion = M_PI * 60.0 / 180.0;
-      break;
-    case 7u:
-      torsion = M_PI * 90.0 / 180.0;
-      break;
-    case 8u:
-      torsion = M_PI * 100.0 / 180.0;
-      break;
-  }
-  return {-torsion, torsion};
-}
-
-//! A structure used to store planar 14 paths - cis/trans
-struct Path14Configuration {
-  unsigned int bid1, bid2, bid3;
-  unsigned int aid1, aid2, aid3, aid4;
-  TorsionValue value;
-  Type14 type14;
-  std::size_t rSize = 0;
-
-  DistGeom::TorsionCandidates toTorsionRange() const {
-    switch (value.type) {
-      case TorsionType::CIS:
-        return DistGeom::TorsionValues{0.0};
-      case TorsionType::TRANS:
-        return DistGeom::TorsionValues{M_PI};
-      case TorsionType::FLEXIBLE:
-        return ringTorsion(rSize);
-      case TorsionType::CISTRANS:
-        return DistGeom::TorsionValues{0.0, M_PI};
-      case TorsionType::CUSTOM:
-        return DistGeom::TorsionValues{*value.value};
-      default:
-        break;
-    }
-    return ringTorsion(0);
-  }
-};
-
-using PATH14_VECT = std::vector<Path14Configuration>;
-
 inline std::size_t getUnifiedId(const unsigned int id1, const unsigned int id2,
                                 const unsigned int n) {
   // returns an id for (id1, id2) independent of order within range (0, 2*n - 1)

@@ -1,0 +1,25 @@
+# Stage only installed development files, then compile against that prefix.
+# Remove obsolete installed headers so they cannot hide packaging regressions.
+file(REMOVE_RECURSE "@installed_header_test_prefix@")
+execute_process(
+  COMMAND "@CMAKE_COMMAND@" --install "@CMAKE_BINARY_DIR@"
+          --component dev --prefix "@installed_header_test_prefix@"
+          --config "${TEST_CONFIG}"
+  RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(NOT result EQUAL 0)
+  message(FATAL_ERROR "Development installation failed: ${output}\n${error}")
+endif()
+
+# A fresh compile is required even when this test is repeated.
+set(sources "@installed_header_test_sources@")
+foreach(source IN LISTS sources)
+  file(TOUCH "${source}")
+endforeach()
+execute_process(
+  COMMAND "@CMAKE_COMMAND@" --build "@CMAKE_BINARY_DIR@"
+          --target testDistGeomInstalledHeaders --config "${TEST_CONFIG}"
+          --parallel 1
+  RESULT_VARIABLE result)
+if(NOT result EQUAL 0)
+  message(FATAL_ERROR "Installed-header consumer compilation failed")
+endif()
