@@ -12,6 +12,7 @@
 #include <Geometry/Utils.h>
 #include <GraphMol/SmilesParse/SmilesParse.h>
 #include <GraphMol/Substruct/SubstructMatch.h>
+#include <GraphMol/DistGeomHelpers/BoundsMatrixBuilderDetails.h>
 #include <GraphMol/ForceFieldHelpers/CrystalFF/GaussianTorsionAngleContribs.h>
 #include <RDGeneral/utils.h>
 #include <RDGeneral/RDLog.h>

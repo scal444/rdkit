@@ -4,7 +4,7 @@ rdkit_library(DistGeomHelpers BoundsMatrixBuilder.cpp Embedder.cpp EmbedderUtils
                 )
 target_compile_definitions(DistGeomHelpers PRIVATE RDKIT_DISTGEOMHELPERS_BUILD)
 
-rdkit_headers(BoundsMatrixBuilder.h ZMatrixBuilder.h
+rdkit_headers(BoundsMatrixBuilder.h BoundsMatrixBuilderDetails.h ZMatrixBuilder.h
               Embedder.h DEST GraphMol/DistGeomHelpers)
 
 rdkit_catch_test(testDistGeomHelpers testDgeomHelpers.cpp
@@ -25,6 +25,7 @@ endif()
 if(RDK_BUILD_NANOBIND_WRAPPERS)
   add_subdirectory(nbWrap)
 endif()
+
 # Compile public consumers without any source-tree RDKit include directories.
 if(RDK_BUILD_CPP_TESTS AND BUILD_TESTING AND RDK_INSTALL_DEV_COMPONENT
    AND NOT RDK_INSTALL_INTREE)

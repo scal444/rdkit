@@ -20,6 +20,7 @@
 #include <DistGeom/ChiralSet.h>
 #include <RDGeneral/ControlCHandler.h>
 
+#include <GraphMol/DistGeomHelpers/BoundsMatrixBuilderDetails.h>
 #include <GraphMol/DistGeomHelpers/BoundsMatrixBuilder.h>
 #include <GraphMol/DistGeomHelpers/Embedder.h>
 
