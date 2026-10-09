@@ -533,7 +533,7 @@ RETURNS:
                                    {E::FINAL_CENTER_IN_VOLUME, 7},
                                    {E::BAD_DOUBLE_BOND_STEREO, 9},
                                    {E::CLASH, 14},
-                                   {E::LINEAR_DOUBLE_BOND, 9},
+                                   {E::LINEAR_DOUBLE_BOND, 8},
                                    {E::EXCEEDED_TIMEOUT, 11}};
         for (const auto &c : causes) {
           result.append(nb::make_tuple(c.first, c.second));

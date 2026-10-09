@@ -929,6 +929,9 @@ class TestCase(unittest.TestCase):
     rdDistGeom.EmbedMolecule(mol, ps)
     fc = ps.GetFailureCounts()
     assert len(fc) == len(legacy_set.union(aio_set))
+    # each cause must be reported at its own index in the failure counts
+    for cause, idx in legacy + aio:
+      self.assertEqual(int(cause), idx)
 
   def testGithub9381(self):
     seen = []
