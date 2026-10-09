@@ -799,14 +799,12 @@ void set13Bounds(const ROMol &mol, DistGeom::BoundsMatPtr mmat,
         aid3 = aid21;
       }
       unsigned int angleType;
-      MMFF::MMFFAngle aProp;
+      MMFF::MMFFAngle aProp{};
       bool aValid = mmffProp.getMMFFAngleBendParams(mol, aid1, aid2, aid3,
                                                     angleType, aProp);
-      if (!aValid) {
-        BOOST_LOG(rdWarningLog)
-            << "Bounds matrix builder: Invalid MMFF angle parameters for ("
-            << aid1 << ", " << aid2 << ", " << aid3 << ")" << std::endl;
-      }
+      // set12Bounds only selects MMFF when every bond is parametrised, which
+      // guarantees an angle (table or empirical rule) for every bonded triple.
+      CHECK_INVARIANT(aValid, "missing MMFF angle parameters");
       const auto angle =
           aProp.theta0 * std::numbers::pi / 180;  // theta0 is in degrees
       const auto pid = getUnifiedId(aid1, aid3, mol.getNumAtoms());

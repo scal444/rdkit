@@ -3004,4 +3004,32 @@ TEST_CASE("MMFFBounds") {
     CHECK(mmat->getUpperBound(0, 1) == r0 + 0.01);
     CHECK(mmat->getLowerBound(0, 1) == r0 - 0.01);
   }
+  SECTION("MMFF angle parameters for every bonded triple") {
+    // set13Bounds requires an MMFF angle for every bonded triple once all
+    // bonds are parametrised
+    for (const auto smi : {"C[Si](C)(C)I", "IP(I)I", "F[Si](F)(F)F",
+                           "C[SiH2][SiH2]C", "CC(=O)Nc1ccc(O)cc1"}) {
+      INFO(smi);
+      std::unique_ptr<RWMol> mol(SmilesToMol(smi));
+      REQUIRE(mol);
+      MolOps::addHs(*mol);
+      DistGeom::BoundsMatPtr mmat(
+          new DistGeom::BoundsMatrix(mol->getNumAtoms()));
+      DGeomHelpers::initBoundsMat(mmat);
+      REQUIRE_NOTHROW(DGeomHelpers::setTopolBounds(
+          *mol, mmat, true, false, false, true, true, true,
+          DGeomHelpers::EmbedFF::MMFF));
+      // check that the MMFF bounds were used
+      auto params = MMFF::MMFFMolProperties(*mol);
+      REQUIRE(params.isValid());
+      const auto bond = mol->getBondWithIdx(0);
+      unsigned int bondType;
+      MMFF::MMFFBond bondProps;
+      REQUIRE(params.getMMFFBondStretchParams(*mol, bond->getBeginAtomIdx(),
+                                              bond->getEndAtomIdx(), bondType,
+                                              bondProps));
+      CHECK(mmat->getUpperBound(bond->getBeginAtomIdx(),
+                                bond->getEndAtomIdx()) == bondProps.r0 + 0.01);
+    }
+  }
 }
