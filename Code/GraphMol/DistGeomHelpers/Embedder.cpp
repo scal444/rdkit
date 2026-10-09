@@ -1416,7 +1416,8 @@ bool setupInitialBoundsMatrix(
     initBoundsMat(mmat);
     bool scaleVDW = true;
     bool set15bounds = false;
-    setTopolBounds(*mol, mmat, params, scaleVDW, set15bounds);
+    setTopolBounds(*mol, mmat, params, scaleVDW, set15bounds, true, true,
+                   nullptr, params.embedForceField);
 
     if (coordMap) {
       adjustBoundsMatFromCoordMap(mmat, nAtoms, coordMap);
@@ -1430,7 +1431,8 @@ bool setupInitialBoundsMatrix(
         initBoundsMat(mmat);
         bool scaleVDW = true;
         bool set15bounds = false;
-        setTopolBounds(*mol, mmat, params, scaleVDW, set15bounds);
+        setTopolBounds(*mol, mmat, params, scaleVDW, set15bounds, true, true,
+                       nullptr, params.embedForceField);
 
         if (coordMap) {
           adjustBoundsMatFromCoordMap(mmat, nAtoms, coordMap);

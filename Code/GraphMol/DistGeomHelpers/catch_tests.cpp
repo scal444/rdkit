@@ -37,6 +37,7 @@
 #include <numbers>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/trim.hpp>
+#include <DistGeom/TriangleSmooth.h>
 #include <DistGeom/ZMatrixUtils.h>
 #include <DistGeom/ZMatrix.h>
 #include "ZMatrixBuilder.h"
@@ -3004,4 +3005,44 @@ TEST_CASE("MMFFBounds") {
     CHECK(mmat->getUpperBound(0, 1) == r0 + 0.01);
     CHECK(mmat->getLowerBound(0, 1) == r0 - 0.01);
   }
+}
+
+TEST_CASE("embedForceField is kept when triangle smoothing is retried") {
+  auto mol = "C/C=C/C=C/C"_smiles;
+  REQUIRE(mol);
+  MolOps::addHs(*mol);
+  // pinning the terminal carbons 2.4 A apart conflicts with the 1-5 bounds,
+  // so the first triangle smoothing fails and the bounds are rebuilt without
+  // them
+  constexpr double d = 2.4;
+  std::map<int, RDGeom::Point3D> cmap{{0, RDGeom::Point3D(0, 0, 0)},
+                                      {5, RDGeom::Point3D(d, 0, 0)}};
+  for (const bool set15bounds : {true, false}) {
+    DistGeom::BoundsMatPtr mmat(new DistGeom::BoundsMatrix(mol->getNumAtoms()));
+    DGeomHelpers::initBoundsMat(mmat);
+    DGeomHelpers::setTopolBounds(*mol, mmat, DGeomHelpers::ETKDGv3, false,
+                                 set15bounds);
+    mmat->setUpperBound(0, 5, d);
+    mmat->setLowerBound(0, 5, d);
+    CHECK(DistGeom::triangleSmoothBounds(mmat, 0.05) == !set15bounds);
+  }
+
+  auto embed = [&](DGeomHelpers::EmbedFF ff) {
+    RWMol cp(*mol);
+    auto ps = DGeomHelpers::ETKDGv3;
+    ps.randomSeed = 7;
+    ps.onlyInitialEmbedding = true;
+    ps.embedForceField = ff;
+    ps.coordMap = &cmap;
+    REQUIRE(DGeomHelpers::EmbedMolecule(cp, ps) == 0);
+    return cp.getConformer().getPositions();
+  };
+  const auto uffPos = embed(DGeomHelpers::EmbedFF::UFF);
+  const auto mmffPos = embed(DGeomHelpers::EmbedFF::MMFF);
+  double maxDiff = 0.0;
+  for (size_t i = 0; i < uffPos.size(); ++i) {
+    maxDiff = std::max(maxDiff, (uffPos[i] - mmffPos[i]).length());
+  }
+  // the MMFF bounds differ from the UFF ones, so the coordinates must too
+  CHECK(maxDiff > 0.01);
 }
