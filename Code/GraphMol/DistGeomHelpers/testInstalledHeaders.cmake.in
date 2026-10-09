@@ -17,7 +17,7 @@ foreach(source IN LISTS sources)
 endforeach()
 execute_process(
   COMMAND "@CMAKE_COMMAND@" --build "@CMAKE_BINARY_DIR@"
-          --target testDistGeomInstalledHeaders --config "${TEST_CONFIG}"
+          --target testInstalledHeaders --config "${TEST_CONFIG}"
           --parallel 1
   RESULT_VARIABLE result)
 if(NOT result EQUAL 0)

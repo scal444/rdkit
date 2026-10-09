@@ -31,22 +31,28 @@ if(RDK_BUILD_CPP_TESTS AND BUILD_TESTING AND RDK_INSTALL_DEV_COMPONENT
    AND NOT RDK_INSTALL_INTREE)
   set(installed_header_test_prefix "${CMAKE_CURRENT_BINARY_DIR}/installed-header-test")
   set(installed_header_test_sources)
-  foreach(source testInstalledBoundsMatrixBuilder.cpp testInstalledTorsionPreferences.cpp)
+  set(installed_header_test_inputs
+      testInstalledBoundsMatrixBuilder.cpp testInstalledTorsionPreferences.cpp)
+  if(RDK_BUILD_THREADSAFE_SSS)
+    list(APPEND installed_header_test_inputs
+         testInstalledSynthonSpaceHitSet.cpp testInstalledSynthonSpaceShapeSearcher.cpp)
+  endif()
+  foreach(source IN LISTS installed_header_test_inputs)
     configure_file(${source} ${CMAKE_CURRENT_BINARY_DIR}/${source} COPYONLY)
     list(APPEND installed_header_test_sources ${CMAKE_CURRENT_BINARY_DIR}/${source})
   endforeach()
-  add_library(testDistGeomInstalledHeaders OBJECT EXCLUDE_FROM_ALL
+  add_library(testInstalledHeaders OBJECT EXCLUDE_FROM_ALL
               ${installed_header_test_sources})
   # Replace inherited include directories; rdkit_base would reintroduce Code/.
-  set_property(TARGET testDistGeomInstalledHeaders PROPERTY INCLUDE_DIRECTORIES
+  set_property(TARGET testInstalledHeaders PROPERTY INCLUDE_DIRECTORIES
                "${installed_header_test_prefix}/${RDKit_HdrDir}")
-  target_link_libraries(testDistGeomInstalledHeaders PRIVATE Boost::boost)
+  target_link_libraries(testInstalledHeaders PRIVATE Boost::boost)
   if(TARGET Eigen3::Eigen)
-    target_link_libraries(testDistGeomInstalledHeaders PRIVATE Eigen3::Eigen)
+    target_link_libraries(testInstalledHeaders PRIVATE Eigen3::Eigen)
   endif()
   configure_file(testInstalledHeaders.cmake.in testInstalledHeaders.cmake @ONLY)
-  add_test(NAME testDistGeomInstalledHeaders
+  add_test(NAME testInstalledHeaders
            COMMAND ${CMAKE_COMMAND} -DTEST_CONFIG=$<CONFIG>
                    -P ${CMAKE_CURRENT_BINARY_DIR}/testInstalledHeaders.cmake)
-  set_tests_properties(testDistGeomInstalledHeaders PROPERTIES RUN_SERIAL TRUE)
+  set_tests_properties(testInstalledHeaders PROPERTIES RUN_SERIAL TRUE)
 endif()
