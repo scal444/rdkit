@@ -58,6 +58,35 @@ function(rdkit_maybe_enable_unity_build target)
 endfunction()
 
 
+# Libraries with SIMD kernels have a portable implementation and a Google
+# Highway one (see RDK_USE_HIGHWAY). Sets ${outVar} to the source file that
+# should be compiled.
+function(rdkit_select_kernels outVar portableSource highwaySource)
+  if(RDK_USE_HIGHWAY)
+    # foreach_target.h re-includes the file, so it can't be merged with others
+    set_source_files_properties(${highwaySource} PROPERTIES
+                                SKIP_UNITY_BUILD_INCLUSION ON)
+    set(${outVar} ${highwaySource} PARENT_SCOPE)
+  else()
+    set(${outVar} ${portableSource} PARENT_SCOPE)
+  endif()
+endfunction()
+
+# Privately links Highway into a library (and its static variant) or a test
+# when RDK_USE_HIGHWAY is set. RDK_USE_HIGHWAY is defined for the target so
+# that tests can run their kernels on every SIMD target the CPU supports.
+function(rdkit_link_highway target)
+  if(NOT RDK_USE_HIGHWAY OR NOT TARGET ${target})
+    return()
+  endif()
+  foreach(tgt ${target} ${target}_static)
+    if(TARGET ${tgt})
+      target_link_libraries(${tgt} PRIVATE hwy::hwy ${ARGN})
+      target_compile_definitions(${tgt} PRIVATE RDK_USE_HIGHWAY)
+    endif()
+  endforeach()
+endfunction()
+
 macro(rdkit_library)
   PARSE_ARGUMENTS(RDKLIB
     "LINK_LIBRARIES;DEST"
