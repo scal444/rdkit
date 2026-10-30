@@ -144,6 +144,10 @@ class EmbedRng {
   std::unique_ptr<RDKit::double_source_type> d_source;
 };
 
+bool pastDeadline(const TimePoint *end_time) {
+  return end_time != nullptr && Clock::now() > *end_time;
+}
+
 }  // namespace
 
 const EmbedParameters DG{};
@@ -651,7 +655,7 @@ bool minimizeFourthDimension(RDGeom::PointPtrVect *positions,
   if (field2->calcEnergy() > ERROR_TOL) {
     int needMore = 1;
     while (needMore) {
-      if (end_time != nullptr && Clock::now() > *end_time) {
+      if (pastDeadline(end_time)) {
         return false;
       }
       needMore = field2->minimize(200, embedParams.optimizerForceTol);
@@ -777,7 +781,7 @@ bool minimizeAllInOne(RDGeom::PointPtrVect *positions,
     std::size_t iter{0};
     int needMore = 1;
     while (needMore and iter < 8) {
-      if (end_time != nullptr && Clock::now() > *end_time) {
+      if (pastDeadline(end_time)) {
         return false;
       }
       needMore = field->minimize(100u, embedParams.optimizerForceTol);
@@ -981,7 +985,7 @@ bool embedPoints(RDGeom::PointPtrVect *positions,
   bool gotCoords = false;
   unsigned int iter = 0;
   while (!gotCoords && iter < embedParams.maxIterations) {
-    if (end_time != nullptr && Clock::now() > *end_time) {
+    if (pastDeadline(end_time)) {
       break;
     }
 
@@ -1039,7 +1043,7 @@ bool embedPoints(RDGeom::PointPtrVect *positions,
             positions, eargs, embedParams, end_time);
         if (!gotCoords) {
           // NOTE: a timeout here is counted as both causes
-          if (end_time != nullptr && Clock::now() > *end_time) {
+          if (pastDeadline(end_time)) {
             recordFailure(embedParams, EmbedFailureCauses::EXCEEDED_TIMEOUT);
           }
           recordFailure(embedParams,
@@ -1105,7 +1109,7 @@ bool embedPointsAIO(RDGeom::PointPtrVect *positions,
 
   while (iter < embedParams.maxIterations) {
     ++iter;
-    if (end_time != nullptr && Clock::now() > *end_time) {
+    if (pastDeadline(end_time)) {
       break;
     }
     // Clear trajectories in cases we write the minimization positions
@@ -1141,7 +1145,7 @@ bool embedPointsAIO(RDGeom::PointPtrVect *positions,
     gotCoords =
         EmbeddingOps::minimizeAllInOne(positions, eargs, embedParams, end_time);
     if (!gotCoords) {
-      recordFailure(embedParams, end_time != nullptr && Clock::now() > *end_time
+      recordFailure(embedParams, pastDeadline(end_time)
                                      ? EmbedFailureCauses::EXCEEDED_TIMEOUT
                                      : EmbedFailureCauses::MINIMIZATION);
       continue;
@@ -1614,8 +1618,7 @@ void embedHelper_(int threadId, int numThreads, EmbedArgs *eargs,
     }
   }
   for (size_t ci = 0; ci < eargs->confs->size(); ci++) {
-    if (ControlCHandler::getGotSignal() ||
-        (end_time != nullptr && Clock::now() > *end_time)) {
+    if (ControlCHandler::getGotSignal() || pastDeadline(end_time)) {
       return;
     }
 
@@ -1994,7 +1997,7 @@ void EmbedMultipleConfs(ROMol &mol, INT_VECT &res, unsigned int numConfs,
       }
     }
 #endif
-    if (end_time != nullptr && Clock::now() > *end_time) {
+    if (pastDeadline(end_time)) {
       recordFailure(params, EmbedFailureCauses::EXCEEDED_TIMEOUT);
       res.push_back(-1);
       return;
