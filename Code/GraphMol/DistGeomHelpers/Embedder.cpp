@@ -1049,12 +1049,10 @@ bool embedPoints(RDGeom::PointPtrVect *positions,
         gotCoords = EmbeddingOps::minimizeFourthDimension(
             positions, eargs, embedParams, end_time);
         if (!gotCoords) {
-          // NOTE: a timeout here is counted as both causes
-          if (pastDeadline(end_time)) {
-            recordFailure(embedParams, EmbedFailureCauses::EXCEEDED_TIMEOUT);
-          }
           recordFailure(embedParams,
-                        EmbedFailureCauses::MINIMIZE_FOURTH_DIMENSION);
+                        pastDeadline(end_time)
+                            ? EmbedFailureCauses::EXCEEDED_TIMEOUT
+                            : EmbedFailureCauses::MINIMIZE_FOURTH_DIMENSION);
         }
       }
 
