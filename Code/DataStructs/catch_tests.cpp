@@ -16,7 +16,10 @@
 #include "BitVectUtils.h"
 #include "ExplicitBitVect.h"
 #include "SparseIntVect.h"
+#include <cstdint>
+#include <cstring>
 #include <limits>
+#include <vector>
 
 using namespace RDKit;
 
@@ -41,4 +44,29 @@ TEST_CASE("github #9033: tversky is 1 when no bits are set") {
   CHECK(BraunBlanquetSimilarity(bv1, bv2) == 0.0);
   CHECK(RusselSimilarity(bv1, bv2) == 0.0);
   CHECK(RogotGoldbergSimilarity(bv1, bv2) == 0.0);
+}
+TEST_CASE("bitmap functions on unaligned bitmaps") {
+  // The bitmaps needn't be aligned for the word-at-a-time popcount (run under
+  // UBSan to check the loads themselves).
+  std::vector<unsigned char> abuf(70), bbuf(70);
+  for (unsigned int i = 0; i < abuf.size(); ++i) {
+    abuf[i] = static_cast<unsigned char>(37 * i + 11);
+    bbuf[i] = static_cast<unsigned char>(91 * i + 5);
+  }
+  for (unsigned int offset = 1; offset < 4; ++offset) {
+    const unsigned char *a = abuf.data() + offset;
+    const unsigned char *b = bbuf.data() + offset;
+    // aligned copies of the same bitmaps
+    std::vector<std::uint64_t> alignedA(8), alignedB(8);
+    std::memcpy(alignedA.data(), a, 64);
+    std::memcpy(alignedB.data(), b, 64);
+    const auto *ca = reinterpret_cast<const unsigned char *>(alignedA.data());
+    const auto *cb = reinterpret_cast<const unsigned char *>(alignedB.data());
+    CHECK(CalcBitmapPopcount(a, 64) == CalcBitmapPopcount(ca, 64));
+    CHECK(CalcBitmapTanimoto(a, b, 64) == CalcBitmapTanimoto(ca, cb, 64));
+    CHECK(CalcBitmapDice(a, b, 64) == CalcBitmapDice(ca, cb, 64));
+    CHECK(CalcBitmapTversky(a, b, 64, 0.3, 0.7) ==
+          CalcBitmapTversky(ca, cb, 64, 0.3, 0.7));
+    CHECK(CalcBitmapAllProbeBitsMatch(a, a, 64));
+  }
 }
