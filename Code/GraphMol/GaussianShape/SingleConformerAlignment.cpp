@@ -272,6 +272,9 @@ double calcVolAndGrads(const double *ref, const double *refAlphas,
 
   for (int i = 0, i_idx = 0; i < numRefPts * 3; i += 3, i_idx++) {
     const auto ai = refAlphas[i_idx];
+    if (ai < 0.0) {
+      continue;
+    }
     const auto aType = refTypes[i_idx];
     for (int j = 0, j_idx = 0, k = 0; j < numFitPts * 3;
          j += 3, j_idx++, k += 12) {
@@ -287,6 +290,9 @@ double calcVolAndGrads(const double *ref, const double *refAlphas,
         continue;
       }
       const auto aj = fitAlphas[j_idx];
+      if (aj < 0.0) {
+        continue;
+      }
       const auto mult = -(ai * aj) / (ai + aj);
       const auto kij = exp(mult * d2);
 
