@@ -1,5 +1,16 @@
-#ifndef RDKIT_NUMERICS_OPTIMIZER_BFGSOPT_SVE_H
-#define RDKIT_NUMERICS_OPTIMIZER_BFGSOPT_SVE_H
+//
+//  Copyright (C) 2026 Greg Landrum and other RDKit contributors
+//
+//   @@ All Rights Reserved @@
+//  This file is part of the RDKit.
+//  The contents are covered by the terms of the BSD license
+//  which is included in the file license.txt, found at the root
+//  of the RDKit source tree.
+//
+// Scalar implementation of the BFGS kernels, with SVE fast paths that are
+// selected at runtime on aarch64 Linux.
+//
+#include "BFGSKernels.h"
 
 #if defined(__linux__) && defined(__aarch64__)
 #include <sys/auxv.h>
@@ -12,8 +23,9 @@
 #endif
 #endif
 
-namespace BFGSOpt {
-static bool cpuHasSVE() {
+namespace BFGSOpt::detail {
+namespace {
+bool cpuHasSVE() {
 #if defined(__linux__) && defined(__aarch64__) && defined(RDK_SVE_AVAILABLE)
   static const bool result = (getauxval(AT_HWCAP) & HWCAP_SVE) != 0;
   return result;
@@ -27,11 +39,11 @@ static bool cpuHasSVE() {
 // ---------------------------------------------------------------------------
 // SVE kernel: initialise search direction xi = -grad and accumulate ||pos||^2
 // ---------------------------------------------------------------------------
-__attribute__((target("+sve"))) static void sveInitXiAndSum(unsigned int dim,
-                                                            const double *grad,
-                                                            double *xi,
-                                                            const double *pos,
-                                                            double *outSum) {
+__attribute__((target("+sve"))) void sveInitXiAndSum(unsigned int dim,
+                                                     const double *grad,
+                                                     double *xi,
+                                                     const double *pos,
+                                                     double *outSum) {
   svfloat64_t acc = svdup_f64(0.0);
   uint64_t i = 0;
   while (i < dim) {
@@ -60,7 +72,7 @@ __attribute__((target("+sve"))) static void sveInitXiAndSum(unsigned int dim,
 // saving two additional O(dim) traversals compared to separate dot-product
 // calls.
 // ---------------------------------------------------------------------------
-__attribute__((target("+sve"))) static void sveHessianVecMul(
+__attribute__((target("+sve"))) void sveHessianVecMul(
     unsigned int dim, const double *invHessian, const double *dGrad,
     double *hessDGrad, const double *xi, double *outFac, double *outFae,
     double *outSumDGrad, double *outSumXi) {
@@ -110,7 +122,7 @@ __attribute__((target("+sve"))) static void sveHessianVecMul(
 // multiply and add into a single pipeline stage, reducing instruction count
 // and register pressure compared to separate multiply + add sequences.
 // ---------------------------------------------------------------------------
-__attribute__((target("+sve"))) static void sveHessianRank1Update(
+__attribute__((target("+sve"))) void sveHessianRank1Update(
     unsigned int dim, double *invHessian, const double *xi,
     const double *hessDGrad, const double *dGrad, double fac, double fad,
     double fae) {
@@ -152,7 +164,7 @@ __attribute__((target("+sve"))) static void sveHessianRank1Update(
 // negation pass. This keeps the loop body to one SVE FMA instruction
 // per iteration, maximising throughput on in-order SVE pipelines.
 // ---------------------------------------------------------------------------
-__attribute__((target("+sve"))) static void sveHessianVecMulNeg(
+__attribute__((target("+sve"))) void sveHessianVecMulNeg(
     unsigned int dim, const double *invHessian, const double *grad,
     double *xi) {
   for (unsigned int i = 0; i < dim; i++) {
@@ -171,9 +183,102 @@ __attribute__((target("+sve"))) static void sveHessianVecMulNeg(
     xi[i] = -svaddv_f64(svptrue_b64(), acc);
   }
 }
+#endif  // RDK_SVE_AVAILABLE
+}  // namespace
 
+double initDirection(unsigned int dim, const double *grad, double *xi,
+                     const double *pos) {
+  double sum = 0.0;
+#ifdef RDK_SVE_AVAILABLE
+  if (cpuHasSVE()) {
+    sveInitXiAndSum(dim, grad, xi, pos, &sum);
+    return sum;
+  }
 #endif
+  for (unsigned int i = 0; i < dim; i++) {
+    xi[i] = -grad[i];
+    sum += pos[i] * pos[i];
+  }
+  return sum;
+}
 
-}  // namespace BFGSOpt
+UpdateDots hessianTimesDGrad(unsigned int dim, const double *invHessian,
+                             const double *dGrad, const double *xi,
+                             double *hessDGrad) {
+  UpdateDots dots;
+#ifdef RDK_SVE_AVAILABLE
+  if (cpuHasSVE()) {
+    // matrix-vector multiply and all four dot products computed in one
+    // vectorised pass, saving two additional O(dim) traversals compared
+    // to separate scalar dot-product calls.
+    sveHessianVecMul(dim, invHessian, dGrad, hessDGrad, xi, &dots.fac,
+                     &dots.fae, &dots.sumDGrad, &dots.sumXi);
+    return dots;
+  }
+#endif
+  // fused matrix-vector multiply and dot-product accumulation.
+  // Pointer arithmetic (++ivh, ++dgj) avoids repeated index computations
+  // and helps the compiler generate efficient load sequences.
+  for (unsigned int i = 0; i < dim; i++) {
+    const double *ivh = &(invHessian[i * dim]);
+    double &hdgradi = hessDGrad[i];
+    const double *dgj = dGrad;
+    hdgradi = 0.0;
+    for (unsigned int j = 0; j < dim; ++j, ++ivh, ++dgj) {
+      hdgradi += *ivh * *dgj;
+    }
+    dots.fac += dGrad[i] * xi[i];
+    dots.fae += dGrad[i] * hessDGrad[i];
+    dots.sumDGrad += dGrad[i] * dGrad[i];
+    dots.sumXi += xi[i] * xi[i];
+  }
+  return dots;
+}
 
-#endif  // RDKIT_NUMERICS_OPTIMIZER_BFGSOPT_SVE_H
+void updateInverseHessian(unsigned int dim, double *invHessian,
+                          const double *xi, const double *hessDGrad,
+                          const double *dGrad, double fac, double fad,
+                          double fae) {
+#ifdef RDK_SVE_AVAILABLE
+  if (cpuHasSVE()) {
+    // symmetric rank-1 update with FMA, exploiting symmetry to halve memory
+    // writes and FLOPs versus a full-matrix update
+    sveHessianRank1Update(dim, invHessian, xi, hessDGrad, dGrad, fac, fad, fae);
+    return;
+  }
+#endif
+  // upper-triangle-only update (j >= i) followed by explicit
+  // symmetrisation. This halves the number of Hessian writes at the cost of
+  // one additional pass over a row to mirror elements.
+  for (unsigned int i = 0; i < dim; i++) {
+    unsigned int itab = i * dim;
+    double pxi = fac * xi[i], hdgi = fad * hessDGrad[i], dgi = fae * dGrad[i];
+    const double *pxj = &(xi[i]), *hdgj = &(hessDGrad[i]), *dgj = &(dGrad[i]);
+    for (unsigned int j = i; j < dim; ++j, ++pxj, ++hdgj, ++dgj) {
+      invHessian[itab + j] += pxi * *pxj - hdgi * *hdgj + dgi * *dgj;
+      invHessian[j * dim + i] = invHessian[itab + j];
+    }
+  }
+}
+
+void newDirection(unsigned int dim, const double *invHessian,
+                  const double *grad, double *xi) {
+#ifdef RDK_SVE_AVAILABLE
+  if (cpuHasSVE()) {
+    sveHessianVecMulNeg(dim, invHessian, grad, xi);
+    return;
+  }
+#endif
+  for (unsigned int i = 0; i < dim; i++) {
+    unsigned int itab = i * dim;
+    xi[i] = 0.0;
+    double &pxi = xi[i];
+    const double *ivh = &(invHessian[itab]);
+    const double *gj = grad;
+    for (unsigned int j = 0; j < dim; ++j, ++ivh, ++gj) {
+      pxi -= *ivh * *gj;
+    }
+  }
+}
+
+}  // namespace BFGSOpt::detail
