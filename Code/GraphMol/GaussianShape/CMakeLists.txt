@@ -1,5 +1,6 @@
+rdkit_select_kernels(SHAPE_OVERLAP ShapeOverlap.cpp ShapeOverlapHwy.cpp)
 rdkit_library(GaussianShape
-        GaussianShape.cpp ShapeInput.cpp ShapeOverlap.cpp SingleConformerAlignment.cpp
+        GaussianShape.cpp ShapeInput.cpp ${SHAPE_OVERLAP} SingleConformerAlignment.cpp
         SHARED LINK_LIBRARIES SmilesParse SubstructMatch MolTransforms)
 if(RDK_BIG_ENDIAN)
     target_compile_definitions(GaussianShape PRIVATE RDKIT_NO_SIMDIVPICKERS)
@@ -10,12 +11,14 @@ else()
     endif()
 endif()
 target_compile_definitions(GaussianShape PRIVATE RDKIT_GAUSSIANSHAPE_BUILD)
+rdkit_link_highway(GaussianShape)
 
 rdkit_headers(GaussianShape.h ShapeInput.h ShapeOverlayOptions.h
         DEST GraphMol/GaussianShape)
 
 rdkit_catch_test(testGaussianShape catch_tests.cpp LINK_LIBRARIES GaussianShape
         FileParsers MolAlign MolTransforms DistGeomHelpers DistGeometry ${TBB_DEP})
+rdkit_link_highway(testGaussianShape)
 
 if(RDK_BUILD_BOOST_PYTHON_WRAPPERS)
     add_subdirectory(Wrap)
