@@ -1,5 +1,5 @@
 rdkit_library(GaussianShape
-        GaussianShape.cpp ShapeInput.cpp SingleConformerAlignment.cpp
+        GaussianShape.cpp ShapeInput.cpp ShapeOverlap.cpp SingleConformerAlignment.cpp
         SHARED LINK_LIBRARIES SmilesParse SubstructMatch MolTransforms)
 if(RDK_BIG_ENDIAN)
     target_compile_definitions(GaussianShape PRIVATE RDKIT_NO_SIMDIVPICKERS)

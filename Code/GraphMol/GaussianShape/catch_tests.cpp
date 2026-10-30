@@ -14,6 +14,10 @@
 #include <chrono>
 #include <random>
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <numbers>
+#include <vector>
 #include <execution>
 
 #include <catch2/catch_test_macros.hpp>
@@ -25,9 +29,11 @@
 #include <GraphMol/FileParsers/MolSupplier.h>
 #include <GraphMol/GaussianShape/GaussianShape.h>
 #include <GraphMol/GaussianShape/ShapeInput.h>
+#include <GraphMol/GaussianShape/SingleConformerAlignment.h>
 #include <GraphMol/MolTransforms/MolTransforms.h>
 #include <GraphMol/SmilesParse/SmilesWrite.h>
 #include <RDGeneral/RDLog.h>
+#include <RDGeneral/SimdTestUtils.h>
 #include <GraphMol/Substruct/SubstructMatch.h>
 
 using namespace RDKit;
@@ -1071,4 +1077,286 @@ TEST_CASE("github #9441: problem with explicit Hs") {
     auto scores = GaussianShape::AlignMolecule(*m1, *m2);
     CHECK_THAT(scores[0], Catch::Matchers::WithinAbs(0.4197, 0.0001));
   }
+}
+namespace {
+// The portable implementation of calcVolAndGrads() (ShapeOverlap.cpp and
+// cartToQuatGrads()), kept as the reference for other implementations.
+namespace reference {
+using namespace RDKit::GaussianShape;
+
+void refCartToQuatGrads(const double *quat, const double *mol,
+                        const int numBPts, std::vector<double> &gradConverters,
+                        const int gradConvOffset) {
+  // for ease of ref
+  const auto q = quat[0];
+  const auto r = quat[1];
+  const auto s = quat[2];
+  const auto u = quat[3];
+  const auto coef = 1.0 / (q * q + r * r + s * s + u * u);
+  for (int i = 0, k = 12 * gradConvOffset; i < 3 * numBPts; i += 3, k += 12) {
+    const auto x = mol[i];
+    const auto y = mol[i + 1];
+    const auto z = mol[i + 2];
+    const auto dx_dq = coef * 2.0 * (q * x + u * y - s * z);
+    const auto dx_dr = coef * 2.0 * (r * x + s * y + u * z);
+    const auto dy_dr = coef * 2.0 * (s * x - r * y + q * z);
+    const auto dx_du = coef * 2.0 * (-u * x + q * y + r * z);
+    const auto dz_ds = dx_dq;
+    const auto dy_du = -dx_dq;
+    const auto dy_ds = dx_dr;
+    const auto dz_du = dx_dr;
+    const auto dx_ds = -dy_dr;
+    const auto dz_dq = dy_dr;
+    const auto dy_dq = dx_du;
+    const auto dz_dr = -dx_du;
+    gradConverters[k] = dx_dq;
+    gradConverters[k + 1] = dy_dq;
+    gradConverters[k + 2] = dz_dq;
+    gradConverters[k + 3] = dx_dr;
+    gradConverters[k + 4] = dy_dr;
+    gradConverters[k + 5] = dz_dr;
+    gradConverters[k + 6] = dx_ds;
+    gradConverters[k + 7] = dy_ds;
+    gradConverters[k + 8] = dz_ds;
+    gradConverters[k + 9] = dx_du;
+    gradConverters[k + 10] = dy_du;
+    gradConverters[k + 11] = dz_du;
+  }
+}
+
+// atoms/shape features
+double refCalcVolAndGrads(const double *ref, const double *refAlphas,
+                          const int numRefPts,
+                          const boost::dynamic_bitset<> *refCarbonRadii,
+                          const double *fit, const double *fitAlphas,
+                          const int numFitPts,
+                          const boost::dynamic_bitset<> *fitCarbonRadii,
+                          std::vector<double> &gradConverters,
+                          const bool useCutoff, const double distCutoff2,
+                          const double *quat, double *gradients) {
+  if (gradients) {
+    refCartToQuatGrads(quat, fit, numFitPts, gradConverters, 0);
+  }
+  static constexpr double CARBON_A = KAPPA / (1.7 * 1.7);
+  static const double CARBON_BIT =
+      8.0 * pow(std::numbers::pi / (2 * CARBON_A), 1.5);
+  double vol = 0.0;
+  double vij;
+  // If either of the carbon radii flags aren't supplied, treat them
+  // both as being all carbon.  There isn't enough information to do
+  // otherwise.
+  const bool allCarbon = !refCarbonRadii || !fitCarbonRadii;
+  for (int i = 0, i_idx = 0; i < numRefPts * 3; i += 3, i_idx++) {
+    const auto ai = refAlphas[i_idx];
+    if (ai < 0.0) {
+      continue;
+    }
+    for (int j = 0, j_idx = 0, k = 0; j < numFitPts * 3;
+         j += 3, j_idx++, k += 12) {
+      const auto dx = ref[i] - fit[j];
+      const auto dy = ref[i + 1] - fit[j + 1];
+      const auto dz = ref[i + 2] - fit[j + 2];
+      const auto d2 = dx * dx + dy * dy + dz * dz;
+      if (useCutoff && d2 > distCutoff2) {
+        continue;
+      }
+      const auto aj = fitAlphas[j_idx];
+      if (aj < 0.0) {
+        continue;
+      }
+      const auto mult = -(ai * aj) / (ai + aj);
+      const auto kij = exp(mult * d2);
+      if (allCarbon || ((*refCarbonRadii)[i_idx] && (*fitCarbonRadii)[j_idx])) {
+        vij = kij * CARBON_BIT;
+      } else {
+        const auto pi_ai_aj = std::numbers::pi / (ai + aj);
+        vij = 8 * kij * pi_ai_aj * std::sqrt(pi_ai_aj);
+      }
+      vol += vij;
+      if (gradients) {
+        const auto r = 2.0 * vij * mult;
+        // Use the gradient converters to calculate the gradients in quaternion
+        // space.
+        // The zeroth gradient is never used, so don't waste time calculating
+        // it but leave the code here for completeness and possible future use.
+        // gradients[0] +=
+        //     r * (dx * gradConverters[k] + dy *
+        //     gradConverters[k + 1] +
+        //          dz * gradConverters[k + 2]);
+        gradients[1] +=
+            r * (dx * gradConverters[k + 3] + dy * gradConverters[k + 4] +
+                 dz * gradConverters[k + 5]);
+        gradients[2] +=
+            r * (dx * gradConverters[k + 6] + dy * gradConverters[k + 7] +
+                 dz * gradConverters[k + 8]);
+        gradients[3] +=
+            r * (dx * gradConverters[k + 9] + dy * gradConverters[k + 10] +
+                 dz * gradConverters[k + 11]);
+        gradients[4] += r * dx;
+        gradients[5] += r * dy;
+        gradients[6] += r * dz;
+      }
+    }
+  }
+  return vol;
+}
+
+// color features
+double refCalcVolAndGrads(const double *ref, const double *refAlphas,
+                          const int numRefPts, const int *refTypes,
+                          const double *fit, const double *fitAlphas,
+                          const int numFitPts, const int *fitTypes,
+                          const int numFitShape,
+                          std::vector<double> &gradConverters,
+                          const bool useCutoff, const double distCutoff2,
+                          const double *quat, double *gradients) {
+  double vol = 0.0;
+  if (gradients) {
+    refCartToQuatGrads(quat, fit, numFitPts, gradConverters, numFitShape);
+  }
+
+  for (int i = 0, i_idx = 0; i < numRefPts * 3; i += 3, i_idx++) {
+    const auto ai = refAlphas[i_idx];
+    const auto aType = refTypes[i_idx];
+    for (int j = 0, j_idx = 0, k = 0; j < numFitPts * 3;
+         j += 3, j_idx++, k += 12) {
+      const auto bType = fitTypes[j_idx];
+      if (aType != bType) {
+        continue;
+      }
+      const auto dx = ref[i] - fit[j];
+      const auto dy = ref[i + 1] - fit[j + 1];
+      const auto dz = ref[i + 2] - fit[j + 2];
+      const auto d2 = dx * dx + dy * dy + dz * dz;
+      if (useCutoff && d2 > distCutoff2) {
+        continue;
+      }
+      const auto aj = fitAlphas[j_idx];
+      const auto mult = -(ai * aj) / (ai + aj);
+      const auto kij = exp(mult * d2);
+
+      const auto pi_ai_aj = std::numbers::pi / (ai + aj);
+      const auto vij = 8 * kij * pi_ai_aj * std::sqrt(pi_ai_aj);
+      vol += vij;
+      if (gradients) {
+        const auto r = 2.0 * vij * mult;
+        // Use the converters to calculate the gradients in quaternion space.
+        // The zeroth gradient is never used, so don't waste time calculating
+        // it but leave the code here for completeness and possible future use.
+        // gradients[0] +=
+        //     r * (dx * gradConverters[k + 0] + dy *
+        //     gradConverters[k + 1] +
+        //          dz * gradConverters[k + 2]);
+        gradients[1] +=
+            r * (dx * gradConverters[k + 3] + dy * gradConverters[k + 4] +
+                 dz * gradConverters[k + 5]);
+        gradients[2] +=
+            r * (dx * gradConverters[k + 6] + dy * gradConverters[k + 7] +
+                 dz * gradConverters[k + 8]);
+        gradients[3] +=
+            r * (dx * gradConverters[k + 9] + dy * gradConverters[k + 10] +
+                 dz * gradConverters[k + 11]);
+        gradients[4] += r * dx;
+        gradients[5] += r * dy;
+        gradients[6] += r * dz;
+      }
+    }
+  }
+  return vol;
+}
+}  // namespace reference
+
+void checkOverlapVolumes() {
+  std::mt19937 rng(42);
+  std::uniform_real_distribution<double> coord(-4.0, 4.0), unit(0.0, 1.0);
+  for (int nRef : {1, 3, 8, 13, 40}) {
+    for (int nFit : {1, 2, 7, 11, 37}) {
+      for (bool useCutoff : {false, true}) {
+        INFO("nRef = " << nRef << ", nFit = " << nFit
+                       << ", useCutoff = " << useCutoff);
+        auto points = [&](int n) {
+          std::vector<double> res(3 * n);
+          for (auto &x : res) {
+            x = coord(rng);
+          }
+          return res;
+        };
+        // the shape overload skips negative alphas, the color one doesn't
+        auto alphas = [&](int n, bool someNegative) {
+          std::vector<double> res(n);
+          for (auto &a : res) {
+            a = someNegative && unit(rng) < 0.1 ? -1.0 : 0.5 + unit(rng);
+          }
+          return res;
+        };
+        auto carbons = [&](int n) {
+          boost::dynamic_bitset<> res(n);
+          for (int i = 0; i < n; ++i) {
+            res[i] = unit(rng) < 0.6;
+          }
+          return res;
+        };
+        auto types = [&](int n) {
+          std::vector<int> res(n);
+          for (auto &t : res) {
+            t = static_cast<int>(3 * unit(rng));
+          }
+          return res;
+        };
+        const auto ref = points(nRef), fit = points(nFit);
+        const auto refAlphas = alphas(nRef, true),
+                   fitAlphas = alphas(nFit, true);
+        const auto refColorAlphas = alphas(nRef, false),
+                   fitColorAlphas = alphas(nFit, false);
+        const auto refCarbons = carbons(nRef), fitCarbons = carbons(nFit);
+        const auto refTypes = types(nRef), fitTypes = types(nFit);
+        std::array<double, 4> quat{unit(rng), unit(rng), unit(rng), unit(rng)};
+        const double cutoff2 = 9.0;
+        // the color call puts its converters after nFit shape points
+        std::vector<double> converters(12 * 2 * nFit),
+            expectedConverters(12 * 2 * nFit);
+
+        auto near = [](double expected) {
+          return Catch::Matchers::WithinAbs(
+              expected, 1e-12 * std::max(1.0, std::fabs(expected)));
+        };
+        for (const bool withCarbons : {false, true}) {
+          const auto *rc = withCarbons ? &refCarbons : nullptr;
+          const auto *fc = withCarbons ? &fitCarbons : nullptr;
+          std::array<double, 7> grads{}, expectedGrads{};
+          const double vol = GaussianShape::calcVolAndGrads(
+              ref.data(), refAlphas.data(), nRef, rc, fit.data(),
+              fitAlphas.data(), nFit, fc, converters, useCutoff, cutoff2,
+              quat.data(), grads.data());
+          const double expected = reference::refCalcVolAndGrads(
+              ref.data(), refAlphas.data(), nRef, rc, fit.data(),
+              fitAlphas.data(), nFit, fc, expectedConverters, useCutoff,
+              cutoff2, quat.data(), expectedGrads.data());
+          CHECK_THAT(vol, near(expected));
+          for (unsigned int g = 0; g < grads.size(); ++g) {
+            CHECK_THAT(grads[g], near(expectedGrads[g]));
+          }
+        }
+        std::array<double, 7> grads{}, expectedGrads{};
+        const double vol = GaussianShape::calcVolAndGrads(
+            ref.data(), refColorAlphas.data(), nRef, refTypes.data(),
+            fit.data(), fitColorAlphas.data(), nFit, fitTypes.data(), nFit,
+            converters, useCutoff, cutoff2, quat.data(), grads.data());
+        const double expected = reference::refCalcVolAndGrads(
+            ref.data(), refColorAlphas.data(), nRef, refTypes.data(),
+            fit.data(), fitColorAlphas.data(), nFit, fitTypes.data(), nFit,
+            expectedConverters, useCutoff, cutoff2, quat.data(),
+            expectedGrads.data());
+        CHECK_THAT(vol, near(expected));
+        for (unsigned int g = 0; g < grads.size(); ++g) {
+          CHECK_THAT(grads[g], near(expectedGrads[g]));
+        }
+      }
+    }
+  }
+}
+}  // namespace
+
+TEST_CASE("overlap volumes match the reference implementation") {
+  forEachSimdTarget(checkOverlapVolumes);
 }
