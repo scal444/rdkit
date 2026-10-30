@@ -16,6 +16,10 @@
 
 #include "BFGSOpt.h"
 
+#ifdef RDK_USE_HIGHWAY
+#include <hwy/targets.h>
+#endif
+
 double circ_0_0(double *v) {
   double dx = v[0];
   double dy = v[1];
@@ -266,5 +270,14 @@ void checkBFGSKernels() {
 }  // namespace
 
 TEST_CASE("BFGS kernels match reference implementations") {
+#ifdef RDK_USE_HIGHWAY
+  for (int64_t target : hwy::SupportedAndGeneratedTargets()) {
+    INFO("Highway target " << hwy::TargetName(target));
+    hwy::SetSupportedTargetsForTest(target);
+    checkBFGSKernels();
+  }
+  hwy::SetSupportedTargetsForTest(0);
+#else
   checkBFGSKernels();
+#endif
 }
