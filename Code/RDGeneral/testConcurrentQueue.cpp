@@ -58,6 +58,23 @@ TEST_CASE("ControlCHandler preserves nested signal handlers") {
   CHECK_FALSE(ControlCHandler::getGotSignal());
 }
 
+TEST_CASE("ControlCHandler reset before a scope retains the original handler") {
+  previousSigIntCount = 0;
+  const auto previousHandler = std::signal(SIGINT, countPreviousSigInt);
+  REQUIRE(previousHandler != SIG_ERR);
+  ControlCHandler::reset();
+  ControlCHandler::reset();
+  {
+    ControlCHandler handler;
+    std::raise(SIGINT);
+    CHECK(ControlCHandler::getGotSignal());
+    std::raise(SIGINT);
+    CHECK(previousSigIntCount == 1);
+  }
+  const auto restoredHandler = std::signal(SIGINT, previousHandler);
+  CHECK(restoredHandler == countPreviousSigInt);
+}
+
 TEST_CASE("ControlCHandler supports concurrent lifetimes") {
   std::atomic<bool> start{false};
   std::vector<std::thread> workers;

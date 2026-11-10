@@ -50,17 +50,7 @@ class ControlCHandler {
     std::lock_guard<std::mutex> lock(d_mutex);
 #endif
     if (d_handlerCount++ == 0) {
-      // signal() replaces the handler before returning the previous one.
-      // An interrupt in that publication window must record cancellation
-      // without trying to restore an unpublished handler or waiting on us.
-      d_handlerReady.clear();
-      d_gotSignal.clear();
-      d_prev_handler.store(std::signal(SIGINT, signalHandler),
-                           std::memory_order_relaxed);
-      d_handlerReady.test_and_set();
-      if (d_gotSignal.test()) {
-        std::signal(SIGINT, d_prev_handler.load(std::memory_order_relaxed));
-      }
+      installHandler();
     }
   }
   ControlCHandler(const ControlCHandler &) = delete;
@@ -94,12 +84,28 @@ class ControlCHandler {
 #ifdef RDK_BUILD_THREADSAFE_SSS
     std::lock_guard<std::mutex> lock(d_mutex);
 #endif
-    d_gotSignal.clear(std::memory_order_relaxed);
-    std::signal(SIGINT, signalHandler);
+    installHandler();
   }
 
  private:
   using SignalHandler = void (*)(int);
+  static void installHandler() {
+    // signal() installs us before returning the previous handler. An interrupt
+    // during publication records cancellation; registration then restores the
+    // original handler. Never wait in the signal handler for this to complete.
+    d_handlerReady.clear();
+    d_gotSignal.clear();
+    const auto previous = std::signal(SIGINT, signalHandler);
+    // reset() may have armed us before the first RAII scope, or may rearm an
+    // active scope. In either case retain the original external handler.
+    if (previous != signalHandler) {
+      d_prev_handler.store(previous, std::memory_order_relaxed);
+    }
+    d_handlerReady.test_and_set();
+    if (d_gotSignal.test()) {
+      std::signal(SIGINT, d_prev_handler.load(std::memory_order_relaxed));
+    }
+  }
   static_assert(std::atomic<SignalHandler>::is_always_lock_free);
   inline static std::atomic_flag d_gotSignal{};
   inline static std::atomic_flag d_handlerReady{};
