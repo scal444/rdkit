@@ -1,0 +1,91 @@
+name: ThreadSanitizer
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/tsan.yml
+  workflow_dispatch:
+  schedule:
+    # Sunday at 05:23 UTC.
+    - cron: '23 5 * * 0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tsan:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 180
+    env:
+      CC: clang-22
+      CXX: clang++-22
+
+    steps:
+      - name: Check out RDKit
+        uses: actions/checkout@v7
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            clang-22 libclang-rt-22-dev llvm-22 ninja-build \
+            libboost-all-dev libcairo2-dev libeigen3-dev libfreetype6-dev
+
+      - name: Configure
+        run: |
+          cmake -S . -B build/tsan -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=thread" \
+            -DRDK_BUILD_CPP_TESTS=ON \
+            -DRDK_BUILD_THREADSAFE_SSS=ON \
+            -DRDK_TEST_MULTITHREADED=ON \
+            -DRDK_BUILD_PYTHON_WRAPPERS=OFF \
+            -DRDK_BUILD_BOOST_PYTHON_WRAPPERS=OFF \
+            -DRDK_BUILD_NANOBIND_WRAPPERS=OFF \
+            -DRDK_BUILD_CAIRO_SUPPORT=ON \
+            -DRDK_BUILD_FREETYPE_SUPPORT=ON \
+            -DRDK_BUILD_CHEMDRAW_SUPPORT=OFF \
+            -DRDK_BUILD_COORDGEN_SUPPORT=OFF \
+            -DRDK_BUILD_MAEPARSER_SUPPORT=OFF \
+            -DRDK_BUILD_PUBCHEMSHAPE_SUPPORT=OFF \
+            -DRDK_BUILD_XYZ2MOL_SUPPORT=ON \
+            -DRDK_INSTALL_INTREE=ON \
+            -DRDK_INSTALL_STATIC_LIBS=OFF
+
+      - name: Build and install
+        run: cmake --build build/tsan --parallel 4 --target install
+
+      - name: Test
+        env:
+          TSAN_OPTIONS: halt_on_error=1:external_symbolizer_path=/usr/bin/llvm-symbolizer-22
+          LD_LIBRARY_PATH: ${{ github.workspace }}/lib
+          RDBASE: ${{ github.workspace }}
+        run: |
+          # Long-chain embedding regressions take several minutes under TSan.
+          ctest --test-dir build/tsan \
+            --parallel 2 \
+            --timeout 1200 \
+            --no-tests=error \
+            --output-on-failure \
+            --output-junit "$GITHUB_WORKSPACE/build/tsan-results.xml"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: tsan-results-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            build/tsan-results.xml
+            build/tsan/Testing/Temporary/LastTest.log
+            build/tsan/Testing/Temporary/LastTestsFailed.log
+            build/tsan/CMakeCache.txt
+            build/tsan/CMakeFiles/CMakeConfigureLog.yaml
