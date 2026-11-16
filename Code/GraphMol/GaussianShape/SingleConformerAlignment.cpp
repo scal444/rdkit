@@ -505,12 +505,9 @@ std::array<double, 7> combineQuatTrans(const std::array<double, 7> &q1,
 }
 
 double oneReduceStep(const double grad, const double oldGrad,
-                     const double quatTrans, const double oldQuatTrans,
                      const double stepSize, double step) {
   if (std::signbit(grad) != std::signbit(oldGrad)) {
-    step = (quatTrans * fabs(oldGrad) + oldQuatTrans * fabs(grad)) /
-               (fabs(oldGrad) + fabs(grad)) -
-           quatTrans;
+    step = step * fabs(oldGrad) / (fabs(oldGrad) + fabs(grad));
     const double newStep = stepSize * grad;
     if (fabs(step) > fabs(newStep)) {
       step *= fabs(newStep / step);
@@ -532,8 +529,6 @@ double oneReduceStep(const double grad, const double oldGrad,
 
 void reduceStep(const std::array<double, 7> &grad,
                 const std::array<double, 7> &oldGrad,
-                const std::array<double, 7> &quatTrans,
-                const std::array<double, 7> &oldQuatTrans,
                 const unsigned int lineIter, std::array<double, 7> &step,
                 double &qStepSize, double &tStepSize) {
   if (lineIter == 2) {
@@ -548,20 +543,14 @@ void reduceStep(const std::array<double, 7> &grad,
     qStepSize *= 5.0;
     tStepSize *= 5.0;
   } else {
-    step[1] = oneReduceStep(grad[1], oldGrad[1], quatTrans[1], oldQuatTrans[1],
-                            qStepSize, step[1]);
-    step[2] = oneReduceStep(grad[2], oldGrad[2], quatTrans[2], oldQuatTrans[2],
-                            qStepSize, step[2]);
-    step[3] = oneReduceStep(grad[3], oldGrad[3], quatTrans[3], oldQuatTrans[3],
-                            qStepSize, step[3]);
+    step[1] = oneReduceStep(grad[1], oldGrad[1], qStepSize, step[1]);
+    step[2] = oneReduceStep(grad[2], oldGrad[2], qStepSize, step[2]);
+    step[3] = oneReduceStep(grad[3], oldGrad[3], qStepSize, step[3]);
     // The original PubChem code used qStepSize for all 6 of these updates, but
     // that would appear to be a cut-and-paste error.
-    step[4] = oneReduceStep(grad[4], oldGrad[4], quatTrans[4], oldQuatTrans[4],
-                            tStepSize, step[4]);
-    step[5] = oneReduceStep(grad[5], oldGrad[5], quatTrans[5], oldQuatTrans[5],
-                            tStepSize, step[5]);
-    step[6] = oneReduceStep(grad[6], oldGrad[6], quatTrans[6], oldQuatTrans[6],
-                            tStepSize, step[6]);
+    step[4] = oneReduceStep(grad[4], oldGrad[4], tStepSize, step[4]);
+    step[5] = oneReduceStep(grad[5], oldGrad[5], tStepSize, step[5]);
+    step[6] = oneReduceStep(grad[6], oldGrad[6], tStepSize, step[6]);
   }
 }
 }  // namespace
@@ -634,8 +623,7 @@ bool SingleConformerAlignment::optimise(const unsigned int maxIters) {
         break;
       }
       // It got worse, so reduce the step.
-      reduceStep(grad, oldGrad, newQuatTrans, oldQuatTrans, lineIter, step,
-                 d_qStepSize, d_tStepSize);
+      reduceStep(grad, oldGrad, lineIter, step, d_qStepSize, d_tStepSize);
       d_quatTrans = oldQuatTrans;
     }  // End of line search
     // Did it converge?
