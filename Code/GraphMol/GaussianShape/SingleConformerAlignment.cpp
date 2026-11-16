@@ -344,10 +344,13 @@ void SingleConformerAlignment::calcVolumeAndGradients(
   // fit so that the radii are already there.
   gradients[0] = gradients[1] = gradients[2] = gradients[3] = gradients[4] =
       gradients[5] = gradients[6] = 0.0;
+  // d_fitTemp is already rotated by quatTrans, and the optimiser composes the
+  // step as quatTrans * step, so the gradient is wanted at the identity.
+  static constexpr std::array<double, 4> identityQuat{1.0, 0.0, 0.0, 0.0};
   shapeOvlpVol = calcVolAndGrads(
       d_refTemp.data(), d_refAlphas.data(), d_nRefShape, d_refCarbonRadii,
       d_fitTemp.data(), d_fitAlphas.data(), d_nFitShape, d_fitCarbonRadii,
-      d_gradConverters, d_useCutoff, d_distCutoff2, quatTrans.data(),
+      d_gradConverters, d_useCutoff, d_distCutoff2, identityQuat.data(),
       gradients.data());
   if (d_optimMode == OptimMode::SHAPE_PLUS_COLOR) {
     std::array<double, 7> colorGrads{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
@@ -356,7 +359,7 @@ void SingleConformerAlignment::calcVolumeAndGradients(
         d_nRefColor, d_refTypes + d_nRefShape,
         d_fitTemp.data() + 3 * d_nFitShape, d_fitAlphas.data() + d_nFitShape,
         d_nFitColor, d_fitTypes + d_nFitShape, d_nFitShape, d_gradConverters,
-        d_useCutoff, d_distCutoff2, quatTrans.data(), colorGrads.data());
+        d_useCutoff, d_distCutoff2, identityQuat.data(), colorGrads.data());
     // The color gradients are normally dwarfed by the shape gradients, so
     // normalize them and then mix by the same rule as the final score.
     const auto shapeSum = sqrt(std::accumulate(
