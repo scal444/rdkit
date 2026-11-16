@@ -250,6 +250,51 @@ class TestCase(unittest.TestCase):
       tpl = rdGaussianShape.AlignMol(ref, fit, overlayOpts=opts)
       self.assertGreater(tpl[0], 0.98)
 
+  def test12_rotationGradientsAwayFromIdentity(self):
+    # The optimizer needs the rotational gradients to be right at every
+    # orientation it visits, not just at the starting one.
+    ref = Chem.AddHs(Chem.MolFromSmiles('c1ccccc1O'))
+    self.assertEqual(rdDistGeom.EmbedMolecule(ref, randomSeed=42), 0)
+    c, s = math.cos(1.0), math.sin(1.0)
+    aboutY = np.array([[c, 0, -s, 0], [0, 1, 0, 0], [s, 0, c, 0], [0, 0, 0, 1]])
+    aboutX = np.array([[1, 0, 0, 0], [0, c, -s, 0], [0, s, c, 0], [0, 0, 0, 1]])
+    for xform in (aboutY, aboutX):
+      fit = Chem.Mol(ref)
+      rdMolTransforms.TransformConformer(fit.GetConformer(), xform)
+      opts = rdGaussianShape.ShapeOverlayOptions()
+      opts.startMode = rdGaussianShape.StartMode.ROTATE_0
+      opts.normalize = False
+      opts.optimMode = rdGaussianShape.OptimMode.SHAPE_ONLY
+      tpl = rdGaussianShape.AlignMol(ref, fit, overlayOpts=opts)
+      self.assertGreater(tpl[0], 0.98)
+
+  def test13_lineSearchRecoversSmallRotations(self):
+    # Aligning a copy of a molecule rotated by a small angle back onto
+    # itself exercises the optimizer's step clamping and line search.
+    with open(datadir + '/esomeprazole_multi.smi') as inf:
+      ref = Chem.MolFromSmiles(inf.readlines()[8].strip())
+    centroid = ref.GetConformer().GetPositions().mean(axis=0)
+
+    def rotation(axis, angle):
+      # Rodrigues' formula, rotating about the centroid.
+      a = np.array(axis, dtype=float)
+      a /= np.linalg.norm(a)
+      k = np.array([[0, -a[2], a[1]], [a[2], 0, -a[0]], [-a[1], a[0], 0]])
+      rot = np.identity(3) + math.sin(angle) * k + (1 - math.cos(angle)) * k @ k
+      xform = np.identity(4)
+      xform[:3, :3] = rot
+      xform[:3, 3] = centroid - rot @ centroid
+      return xform
+
+    for axis in ((0, 0, 1), (0, 1, 1), (1, -1, 1), (1, 1, -1)):
+      fit = Chem.Mol(ref)
+      rdMolTransforms.TransformConformer(fit.GetConformer(), rotation(axis, 0.25))
+      opts = rdGaussianShape.ShapeOverlayOptions()
+      opts.startMode = rdGaussianShape.StartMode.ROTATE_0
+      opts.normalize = False
+      tpl = rdGaussianShape.AlignMol(ref, fit, overlayOpts=opts)
+      self.assertGreaterEqual(tpl[1], 0.99, msg=f'axis {axis}')
+
 
 if __name__ == '__main__':
   unittest.main()

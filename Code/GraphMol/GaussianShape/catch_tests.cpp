@@ -1137,3 +1137,58 @@ TEST_CASE("color gradients are mixed into the matching components") {
     CHECK_THAT(mixed[g], Catch::Matchers::WithinAbs(expected, 1.0e-10));
   }
 }
+TEST_CASE("rotational gradients are correct away from the identity") {
+  // The optimiser applies a step as quatTrans * step, so the gradients must
+  // be those of V(quatTrans * step) with respect to the step.
+  using QuatTrans = std::array<double, 7>;
+  // A copy of combineQuatTrans, which isn't exposed.
+  auto combine = [](const QuatTrans &a, const QuatTrans &b) {
+    return QuatTrans{a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3],
+                     a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2],
+                     a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1],
+                     a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0],
+                     a[4] + b[4],
+                     a[5] + b[5],
+                     a[6] + b[6]};
+  };
+  // A small asymmetric shape, used as both ref and fit.
+  const std::vector<double> pts{0.0, 0.0,  0.0, 1.5, 0.0, 0.0,  2.1, 1.3,
+                                0.0, -0.8, 1.1, 0.4, 0.3, -0.9, 1.2};
+  const std::vector<double> alphas(5, 0.8);
+  const std::vector<int> types(5, 0);
+  GaussianShape::SingleConformerAlignment sca(
+      pts, alphas, types.data(), nullptr, 5, 0, 1.0, 0.0, pts, alphas,
+      types.data(), nullptr, 5, 0, 1.0, 0.0,
+      {1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}, GaussianShape::OptimMode::SHAPE_ONLY,
+      1.0, 1.0, 0.5, false, 0.0, 0.001, 100);
+  auto volume = [&](const QuatTrans &quatTrans) {
+    double shapeVol, colorVol;
+    QuatTrans grads;
+    sca.calcVolumeAndGradients(quatTrans, shapeVol, colorVol, grads);
+    return shapeVol;
+  };
+  const double h = 1.0e-5;
+  for (const auto angle : {0.3, 1.0}) {
+    // Rotate about (1, 2, 3) and translate a little.
+    const auto s = std::sin(angle / 2) / std::sqrt(14.0);
+    const QuatTrans quatTrans{
+        std::cos(angle / 2), s, 2 * s, 3 * s, 0.2, -0.1, 0.3};
+    double shapeVol, colorVol;
+    QuatTrans grads;
+    sca.calcVolumeAndGradients(quatTrans, shapeVol, colorVol, grads);
+    for (unsigned int g = 1; g < 7; ++g) {
+      QuatTrans stepPlus{1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+      if (g < 4) {
+        stepPlus[0] = std::sqrt(1.0 - h * h);
+      }
+      auto stepMinus = stepPlus;
+      stepPlus[g] = h;
+      stepMinus[g] = -h;
+      const auto fd = (volume(combine(quatTrans, stepPlus)) -
+                       volume(combine(quatTrans, stepMinus))) /
+                      (2 * h);
+      INFO("angle " << angle << " gradient " << g);
+      CHECK_THAT(grads[g], Catch::Matchers::WithinAbs(-fd, 1.0e-6));
+    }
+  }
+}
