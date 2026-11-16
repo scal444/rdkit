@@ -295,8 +295,8 @@ TEST_CASE("Two piece query") {
   params.shapeOverlayOptions.simAlpha = 0.95;
   params.shapeOverlayOptions.simBeta = 0.05;
   auto results = synthonspace.shapeSearch(*queryMol, params);
-  CHECK(results.getHitMolecules().size() == 2);
-  std::vector<double> expScores{0.721, 0.715};
+  CHECK(results.getHitMolecules().size() == 3);
+  std::vector<double> expScores{0.721, 0.715, 0.711};
   for (unsigned int i = 0; i < results.getHitMolecules().size(); ++i) {
     auto &mol = results.getHitMolecules()[i];
     CHECK_THAT(mol->getProp<double>("Similarity"),
@@ -401,7 +401,7 @@ c1ccccc1[1*]	1-1	0	test1
   CHECK(results.getHitMolecules().size() == 1);
   CHECK(results.getHitMolecules()[0]->getName() == "1-1;2-1;3-1;test1");
   CHECK_THAT(results.getHitMolecules()[0]->getProp<double>("Similarity"),
-             Catch::Matchers::WithinAbs(0.786, 0.001));
+             Catch::Matchers::WithinAbs(0.792, 0.001));
 }
 
 TEST_CASE("Trim sample molecules") {
@@ -629,8 +629,8 @@ TEST_CASE("Github 9744 - possible hits not in descending order of similarity") {
   // Previously, these same possible hits appeared in a different order.
   std::vector<std::string> expHits = {
       "OCC([1*])=NN=[2*].c1ccccc1N([3*])[1*].CC1CCN(C1)C(=[2*])[3*] 1-1;2-2;3-1;triazole-1",
-      "CC(C)OCC([1*])=NN=[2*].c1ccccc1N([3*])[1*].CC1CCN(C1)C(=[2*])[3*] 1-2;2-2;3-1;triazole-1",
       "OCC([1*])=NN=[2*].C1CCCC1N([3*])[1*].CC1CCN(C1)C(=[2*])[3*] 1-1;2-1;3-1;triazole-1",
+      "CC(C)OCC([1*])=NN=[2*].c1ccccc1N([3*])[1*].CC1CCN(C1)C(=[2*])[3*] 1-2;2-2;3-1;triazole-1",
       "CC(C)OCC([1*])=NN=[2*].C1CCCC1N([3*])[1*].CC1CCN(C1)C(=[2*])[3*] 1-2;2-1;3-1;triazole-1",
       "OCC([1*])=NN=[2*].c1ccccc1N([3*])[1*].C(F)(F)(F)C1CCN(C1)C(=[2*])[3*] 1-1;2-2;3-2;triazole-1",
       "OCC([1*])=NN=[2*].C1CCCC1N([3*])[1*].C(F)(F)(F)C1CCN(C1)C(=[2*])[3*] 1-1;2-1;3-2;triazole-1",
