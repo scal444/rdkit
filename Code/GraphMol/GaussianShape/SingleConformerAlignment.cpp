@@ -470,15 +470,9 @@ double constrainStep(const double maxStep, double *step, const bool checkSize) {
   const double mStep = std::max({fabs(step[0]), fabs(step[1]), fabs(step[2])});
   if (mStep > maxStep) {
     const double scaleFactor = maxStep / mStep;
-    if (fabs(step[0]) > maxStep) {
-      step[0] *= scaleFactor;
-    }
-    if (fabs(step[1]) > maxStep) {
-      step[1] *= scaleFactor;
-    }
-    if (fabs(step[2]) > maxStep) {
-      step[2] *= scaleFactor;
-    }
+    step[0] *= scaleFactor;
+    step[1] *= scaleFactor;
+    step[2] *= scaleFactor;
   }
   if (checkSize) {
     const double quatSquared =
