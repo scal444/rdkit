@@ -109,11 +109,22 @@ std::string AtomGetSmarts(const Atom *atom, bool doKekule, bool allHsExplicit,
   return res;
 }
 
+AtomMonomerInfo *copyMonomerInfo(const AtomMonomerInfo *info) {
+  if (info->getMonomerType() == AtomMonomerInfo::PDBRESIDUE &&
+      !dynamic_cast<const AtomPDBResidueInfo *>(info)) {
+    return new AtomPDBResidueInfo(
+        info->getName(), 0, "", info->getResidueName(),
+        info->getResidueNumber(), info->getChainId(), "", 1.0, 0.0, false, 0,
+        0, info->getMonomerClass());
+  }
+  return info->copy();
+}
+
 void SetAtomMonomerInfo(Atom *atom, const AtomMonomerInfo *info) {
   if (!info) {
     atom->setMonomerInfo(nullptr);
   } else {
-    atom->setMonomerInfo(info->copy());
+    atom->setMonomerInfo(copyMonomerInfo(info));
   }
 }
 
@@ -131,7 +142,7 @@ void AtomSetPDBResidueInfo(Atom *atom, const AtomMonomerInfo *info) {
   if (info->getMonomerType() != AtomMonomerInfo::PDBRESIDUE) {
     throw_value_error("MonomerInfo is not a PDB Residue");
   }
-  atom->setMonomerInfo(info->copy());
+  atom->setMonomerInfo(copyMonomerInfo(info));
 }
 
 AtomPDBResidueInfo *AtomGetPDBResidueInfo(Atom *atom) {
@@ -142,7 +153,11 @@ AtomPDBResidueInfo *AtomGetPDBResidueInfo(Atom *atom) {
   if (res->getMonomerType() != AtomMonomerInfo::PDBRESIDUE) {
     throw_value_error("MonomerInfo is not a PDB Residue");
   }
-  return (AtomPDBResidueInfo *)res;
+  auto *pdbInfo = dynamic_cast<AtomPDBResidueInfo *>(res);
+  if (!pdbInfo) {
+    throw_value_error("MonomerInfo is not an AtomPDBResidueInfo");
+  }
+  return pdbInfo;
 }
 
 namespace {
