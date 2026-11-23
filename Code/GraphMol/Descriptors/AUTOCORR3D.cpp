@@ -171,11 +171,13 @@ void get3DautocorrelationDesc(double *dist3D, double *topologicaldistance,
     delete[] Bimat;
   }
 
-  // update the Output vector!
+  // update the Output vector! A single atom has no atom pairs.
+  const double numPairs = numAtoms * (numAtoms - 1);
   for (unsigned int j = 0; j < 8; ++j) {
     for (unsigned int i = 0; i < 10; ++i) {
       res[j * 10 + i] =
-          std::round(1000 * TDBmat[j][i] / (numAtoms * (numAtoms - 1))) / 1000;
+          numPairs > 0 ? std::round(1000 * TDBmat[j][i] / numPairs) / 1000
+                       : 0.0;
     }
   }
 }
@@ -208,8 +210,10 @@ void get3DautocorrelationDescCustom(double *dist3D, double *topologicaldistance,
     delete[] Bimat;
   }
   // update the Output vector!
+  const double numPairs = numAtoms * (numAtoms - 1);
   for (unsigned int i = 0; i < 10; ++i) {
-    res[i] = std::round(1000 * TDBmat[i] / (numAtoms * (numAtoms - 1))) / 1000;
+    res[i] =
+        numPairs > 0 ? std::round(1000 * TDBmat[i] / numPairs) / 1000 : 0.0;
   }
 }
 

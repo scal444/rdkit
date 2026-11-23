@@ -105,16 +105,20 @@ std::vector<double> getWhimD(std::vector<double> weightvector,
   w[4] = SingVal[0] * SingVal[1] + SingVal[0] * SingVal[2] +
          SingVal[1] * SingVal[2];                              // A
   w[5] = w[3] + w[4] + SingVal[0] * SingVal[1] * SingVal[2];   // V
-  w[6] = SingVal[0] / (SingVal[0] + SingVal[1] + SingVal[2]);  // P1
-  w[7] = SingVal[1] / (SingVal[0] + SingVal[1] + SingVal[2]);  // p2
-  w[8] = SingVal[2] / (SingVal[0] + SingVal[1] + SingVal[2]);  // P3
+  // the shape parameters are undefined when there's no spread at all (e.g. a
+  // single atom); leave them at zero
+  if (w[3] > 0) {
+    w[6] = SingVal[0] / w[3];  // P1
+    w[7] = SingVal[1] / w[3];  // p2
+    w[8] = SingVal[2] / w[3];  // P3
 
-  double res = 0.0;
-  for (int i = 0; i < 3; i++) {
-    res += std::fabs(w[i] / w[3] - 1.0 / 3.0);
+    double res = 0.0;
+    for (int i = 0; i < 3; i++) {
+      res += std::fabs(w[i] / w[3] - 1.0 / 3.0);
+    }
+
+    w[9] = 3.0 / 4.0 * res;  // K
   }
-
-  w[9] = 3.0 / 4.0 * res;  // K
 
   // center original matrix
   VectorXd v1 = Scores.col(0);

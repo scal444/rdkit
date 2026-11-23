@@ -306,7 +306,8 @@ void getGETAWAYDescCustom(MatrixXd H, MatrixXd R, MatrixXd Adj, int numAtoms,
     ITH -= Clu * log(Clu) / log(2.0);
   }
   res[0] = roundn(ITH, 3);  // issue sometime with this due to cluster
-  double ISH = ITH / ITH0;
+  // ITH0 is zero with a single heavy atom
+  double ISH = ITH0 > 0 ? ITH / ITH0 : 0.0;
   res[1] = roundn(ISH, 3);  // issue sometime with this due to cluster
 
   // use the PBF to determine 2D vs 3D (with Threshold)
@@ -322,7 +323,10 @@ void getGETAWAYDescCustom(MatrixXd H, MatrixXd R, MatrixXd Adj, int numAtoms,
   // what about linear molecule ie (D=1) ?
   double HIC = 0.0;
   for (int i = 0; i < numAtoms; i++) {
-    HIC -= H(i, i) / D * log(H(i, i) / D) / log(2);
+    // x log x -> 0 for a zero leverage
+    if (H(i, i) > 0) {
+      HIC -= H(i, i) / D * log(H(i, i) / D) / log(2);
+    }
   }
   res[2] = roundn(HIC, 3);
 
@@ -532,7 +536,8 @@ void getGETAWAYDesc(MatrixXd H, MatrixXd R, MatrixXd Adj, int numAtoms,
     ITH -= Clu * log(Clu) / log(2.0);
   }
   res[0] = roundn(ITH, 3);  // issue sometime with this due to cluster
-  double ISH = ITH / ITH0;
+  // ITH0 is zero with a single heavy atom
+  double ISH = ITH0 > 0 ? ITH / ITH0 : 0.0;
   res[1] = roundn(ISH, 3);  // issue sometime with this due to cluster
 
   // use the PBF to determine 2D vs 3D (with Threshold)
@@ -548,7 +553,10 @@ void getGETAWAYDesc(MatrixXd H, MatrixXd R, MatrixXd Adj, int numAtoms,
   // what about linear molecule ie (D=1) ?
   double HIC = 0.0;
   for (int i = 0; i < numAtoms; i++) {
-    HIC -= H(i, i) / D * log(H(i, i) / D) / log(2.);
+    // x log x -> 0 for a zero leverage
+    if (H(i, i) > 0) {
+      HIC -= H(i, i) / D * log(H(i, i) / D) / log(2.);
+    }
   }
   res[2] = roundn(HIC, 3);
 

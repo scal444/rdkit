@@ -32,6 +32,8 @@
 #ifdef RDK_BUILD_DESCRIPTORS3D
 #include <GraphMol/Descriptors/GETAWAY.h>
 #include <GraphMol/Descriptors/EEM.h>
+#include <GraphMol/Descriptors/AUTOCORR3D.h>
+#include <GraphMol/Descriptors/WHIM.h>
 #endif
 
 using namespace RDKit;
@@ -801,6 +803,32 @@ TEST_CASE("GETAWAY on molecules with several fragments") {
   for (const auto idx : tc.totals) {
     INFO(idx);
     CHECK(saltRes[idx] == connectedRes[idx]);
+  }
+}
+
+TEST_CASE("3D descriptors of molecules with a single heavy atom are finite") {
+  v2::SmilesParse::SmilesParserParams ps;
+  ps.removeHs = false;
+  const std::vector<std::string> smis = {
+      "[Na+] |(0,0,0)|",
+      "[H]C([H])([H])[H] |(0.63,0.63,0.63;0,0,0;-0.63,-0.63,0.63;"
+      "-0.63,0.63,-0.63;0.63,-0.63,-0.63)|"};
+  for (const auto &smi : smis) {
+    auto m = v2::SmilesParse::MolFromSmiles(smi, ps);
+    REQUIRE(m);
+    std::vector<double> autocorr, whim, getaway;
+    Descriptors::AUTOCORR3D(*m, autocorr);
+    Descriptors::WHIM(*m, whim);
+    Descriptors::GETAWAY(*m, getaway);
+    for (const auto &[name, res] :
+         {std::pair{"AUTOCORR3D", &autocorr}, std::pair{"WHIM", &whim},
+          std::pair{"GETAWAY", &getaway}}) {
+      REQUIRE(!res->empty());
+      for (size_t i = 0; i < res->size(); ++i) {
+        INFO(smi << " " << name << " " << i);
+        CHECK(std::isfinite((*res)[i]));
+      }
+    }
   }
 }
 #endif
